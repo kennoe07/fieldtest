@@ -22,6 +22,10 @@ await db.exec(`
  insert into auth.users values('${owner}'),('${tester}'),('${outsider}');
 `);
 await db.exec(await readFile(new URL('../supabase/migrations/001_research.sql',import.meta.url),'utf8'));
+if(process.argv.includes('--reward-records')){
+ await db.exec('create role service_role');
+ for(const file of ['002_wallet_links.sql','004_reward_records.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
+}
 let checks=0;
 async function as(user,fn){
  await db.exec('begin; set local role authenticated;');
