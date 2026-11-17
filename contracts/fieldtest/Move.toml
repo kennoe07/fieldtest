@@ -1,0 +1,9 @@
+[package]
+name = "fieldtest_rewards"
+edition = "2024"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "9dc25070cf2ed18bcda1ebb095f39708638195a8" }
+
+[addresses]
+fieldtest_rewards = "0x0"

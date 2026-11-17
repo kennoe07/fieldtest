@@ -45,7 +45,7 @@ Deploy the frontend to Vercel with build command `npm run build` and output dire
 
 ## Boundaries
 
-The live database is configured; email delivery, authenticated storage uploads, and cross-device workflows still need end-to-end verification. No blockchain package, wallet integration, live funding, or AI service is implemented. Campaign drafts use localStorage; submitted feedback and screenshots use IndexedDB. These are not protected multi-user accounts. Clearing browser data removes local records. Unsubmitted responses remain in component memory and are lost on reload/navigation. Proposed rewards are unfunded; local approval never sends a payment. Invited tester links only work where the campaign exists in browser storage. Sample observations are authored examples, separated from entered feedback. Google Fonts requires an internet connection; system-font fallbacks are configured.
+The live database is configured; email delivery, authenticated storage uploads, and cross-device workflows still need end-to-end verification. On-demand Sui mainnet wallet connection is implemented. A separate Move reward escrow prototype has 26 passing local tests; see `contracts/README.md`. Live funding, payout integration, and AI services are not implemented. Campaign drafts use localStorage; submitted feedback and screenshots use IndexedDB. These are not protected multi-user accounts. Clearing browser data removes local records. Unsubmitted responses remain in component memory and are lost on reload/navigation. Proposed rewards are unfunded; local approval never sends a payment. Invited tester links only work where the campaign exists in browser storage. Sample observations are authored examples, separated from entered feedback. Google Fonts requires an internet connection; system-font fallbacks are configured.
 
 ## Verification
 
@@ -62,4 +62,5 @@ Run `npm run test:cloud` for 33 PostgreSQL checks using PGlite and stub Supabase
 ## Next implementation slice
 
 Test sign-in with the project-team email, configure a sender for external testers, and run the documented two-account live verification; settle production acceptance/rejection rules; implement and test the Move reward state machine locally/testnet before a capped Sui mainnet pilot.
+
 
