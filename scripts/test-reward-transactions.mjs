@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildRewardTransaction,suiToMist} from '../lib/reward-transactions.mjs';
+import {buildRewardTransaction,suiToMist,usdcToBaseUnits,MAINNET_USDC} from '../lib/reward-transactions.mjs';
 import {bcs} from '@mysten/sui/bcs';
 let passed=0;
 function check(name,fn){fn();passed++;console.log(`PASS ${name}`)}
@@ -18,4 +18,13 @@ check('invalid hash blocked',()=>assert.throws(()=>buildRewardTransaction({...ba
 check('invalid review window blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'create',reviewUntilMs:base.submitUntilMs})));
 check('oversized seats blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'create',slots:'51'})));
 check('unknown operation blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'withdraw'})));
+check('USDC exact micro unit',()=>assert.equal(usdcToBaseUnits('0.000001'),'1'));
+check('USDC exact six decimal conversion',()=>assert.equal(usdcToBaseUnits('5.123456'),'5123456'));
+check('USDC excess precision rejected',()=>assert.throws(()=>usdcToBaseUnits('1.0000001')));
+const usdc={...base,asset:'USDC',rewardBaseUnits:'5000000',fundingCoinIds:['0x'+'4'.repeat(64),'0x'+'5'.repeat(64)]};
+for(const action of ['create','enroll','submit','approve','refund'])check(`USDC ${action} pins native coin type`,()=>assert.equal(buildRewardTransaction({...usdc,action}).getData().commands.at(-1).MoveCall.typeArguments[0],MAINNET_USDC));
+check('USDC funding merges supplied objects and never splits SUI gas',()=>{const data=buildRewardTransaction({...usdc,action:'create'}).getData();assert.equal(data.commands[0].$kind,'MergeCoins');assert.equal(data.commands[1].$kind,'SplitCoins');assert.equal(data.commands[1].SplitCoins.coin.$kind,'Input');const amount=data.commands[1].SplitCoins.amounts[0];assert.equal(bcs.u64().parse(Buffer.from(data.inputs[amount.Input].Pure.bytes,'base64')),'10000000')});
+check('USDC funding requires coin selection',()=>assert.throws(()=>buildRewardTransaction({...usdc,action:'create',fundingCoinIds:[]})));
+check('duplicate funding objects rejected',()=>assert.throws(()=>buildRewardTransaction({...usdc,action:'create',fundingCoinIds:[usdc.fundingCoinIds[0],usdc.fundingCoinIds[0]]})));
+check('unsupported asset rejected',()=>assert.throws(()=>buildRewardTransaction({...base,action:'refund',asset:'FAKE_USDC'})));
 console.log(`${passed} transaction preparation checks passed`);

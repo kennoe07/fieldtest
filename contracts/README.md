@@ -1,13 +1,13 @@
 # Fieldtest reward escrow prototype
 
-Not published or integrated with the app. No funds have been deposited. Local Move VM tests: **26 passed, 0 failed**. Production Move build passed. These checks are not a security audit.
+Not published or integrated with the app. No funds have been deposited. Local Move VM tests: **27 passed, 0 failed**. Production Move build passed. These checks are not a security audit.
 
 ## Rules
 
-- One shared Campaign per funded campaign. Generic coin type, fixed integer reward in coin base units, maximum 50 seats. The initial SUI pilot must explicitly use SUI and convert displayed amounts to MIST. Current app reward numbers are planning values and are not automatically converted or funded.
+- One shared Campaign per funded campaign. Generic coin type, fixed integer reward in coin base units, maximum 50 seats. The product decision is native USDC on Sui mainnet, with six decimal places. Transaction builders now support explicit USDC coin inputs separately from SUI gas. Current app reward numbers are planning values and are not automatically funded.
 - Creator deposits exactly `reward * slots`. Reward, capacity, campaign terms hash, submission deadline, and review deadline are immutable. Review deadline must be later than submission deadline. There is no early refund or cancellation.
 - Creator enrolls tester addresses before the submission deadline. Self enrollment, zero address, duplicate addresses, and exceeding capacity are rejected. This is a deliberate admission step, not an open join: backend invitation acceptance does not yet perform on-chain enrollment.
-- Enrolled tester signs a 32-byte submission commitment before the deadline. Unpaid revisions may replace it before that deadline. No raw research or email addresses are stored on chain. A salted, canonical document hashing format remains to be implemented; hashes and wallet activity are public.
+- Enrolled tester signs a 32-byte submission commitment before the deadline. Unpaid revisions may replace it before that deadline. No raw research or email addresses are stored on chain. Salted canonical campaign/submission document helpers are implemented and tested, including evidence-byte hashing. Authoritative storage and on-chain binding are still pending; hashes and wallet activity are public.
 - Creator approves an exact submission digest before the review deadline. The transaction atomically marks the seat paid and transfers one reward to that seat's fixed address. Repeated payments and stale digests abort. There is no separate claim step.
 - At or after the review deadline, only the creator can close the campaign and recover all unpaid funds. Paid rewards remain with testers. Approval and refund periods do not overlap.
 

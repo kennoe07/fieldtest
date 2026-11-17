@@ -12,7 +12,8 @@
     "test:rewards": "node scripts/test-reward-transactions.mjs",
     "test:drafts": "node scripts/test-drafts.mjs",
     "test:results": "node scripts/test-results.mjs",
-    "test:findings": "node scripts/test-findings.mjs"
+    "test:findings": "node scripts/test-findings.mjs",
+    "test:reward-documents": "node scripts/test-reward-documents.mjs"
   },
   "dependencies": {
     "@mysten/dapp-kit-react": "^2.1.45",
