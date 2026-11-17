@@ -25,7 +25,7 @@ function readDrafts(): Campaign[] {try {const data=JSON.parse(localStorage.getIt
 function Logo({onClick}:{onClick:()=>void}) {return <button className="brand" onClick={onClick} aria-label="Fieldtest home"><span className="brand-icon"><i/><i/><i/><i/></span>fieldtest<span className="brand-dot">®</span></button>}
 function App(){
  const [route,setRoute]=useState(()=>new URLSearchParams(location.search).has('code')&&!location.hash.startsWith('#invite/')?'#cloud':location.hash);
- const page=route.startsWith('#cloud')||route.startsWith('#invite/')?'cloud':route.startsWith('#app')?'app':route.startsWith('#test/')?'tester':'home';
+ const page=route.startsWith('#cloud')||route.startsWith('#invite/')||route.startsWith('#session/')?'cloud':route.startsWith('#app')?'app':route.startsWith('#test/')?'tester':'home';
  const [submissions,setSubmissions]=useState<Submission[]>([]);
  const [loadingResearch,setLoadingResearch]=useState(true);
  const [storageError,setStorageError]=useState('');

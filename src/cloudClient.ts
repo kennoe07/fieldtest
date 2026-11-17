@@ -21,6 +21,14 @@ export async function cloudSubmissions():Promise<Submission[]> {
   return (data??[]).map(row=>({id:row.id,campaignId:row.campaign_id,testerName:row.tester_name,summary:row.summary,status:row.status,reviewNote:row.review_note,submittedAt:row.submitted_at,updatedAt:row.updated_at,
     responses:row.responses.map((r:any)=>({...r,evidence:r.evidence.map((e:any)=>({...e,id:e.path,blob:new Blob()}))}))}));
 }
+export async function joinedCampaigns():Promise<Campaign[]> {
+  const client=requireCloud();const {data:{user},error:authError}=await client.auth.getUser();
+  if(authError||!user)throw new Error('Please sign in again.');
+  const {data:members,error}=await client.from('ft_members').select('campaign_id').eq('tester_id',user.id);
+  if(error)throw error;if(!members?.length)return [];
+  const {data,error:loadError}=await client.from('ft_campaigns').select('*').in('id',members.map(m=>m.campaign_id)).order('created_at',{ascending:false});
+  if(loadError)throw loadError;return (data??[]).map(campaignFromRow);
+}
 export async function evidenceUrl(path:string) {
   const {data,error}=await requireCloud().storage.from('fieldtest-evidence').createSignedUrl(path,60);
   if(error)throw error;return data.signedUrl;

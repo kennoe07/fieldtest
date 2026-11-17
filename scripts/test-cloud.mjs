@@ -43,6 +43,9 @@ await check('accepting twice does not allocate a second seat',async()=>{await as
 await check('last-seat limit rejects another tester',async()=>assert.rejects(as(outsider,()=>db.query('select public.ft_join_campaign($1)',[token])),/No tester seats/));
 await check('member can read the joined campaign',async()=>assert.equal((await as(tester,()=>db.query('select * from public.ft_campaigns'))).rows.length,1));
 await check('member still cannot read invitation tokens',async()=>assert.equal((await as(tester,()=>db.query('select * from public.ft_invitations'))).rows.length,0));
+await check('accepted unfinished session is discoverable without invitation',async()=>{const rows=(await as(tester,()=>db.query('select c.id from public.ft_members m join public.ft_campaigns c on c.id=m.campaign_id where m.tester_id=$1',[tester]))).rows;assert.deepEqual(rows.map(r=>r.id),[id]);assert.equal((await as(tester,()=>db.query('select * from public.ft_submissions'))).rows.length,0)});
+await check('outsider cannot discover another tester session',async()=>assert.equal((await as(outsider,()=>db.query('select c.id from public.ft_members m join public.ft_campaigns c on c.id=m.campaign_id where m.tester_id=$1',[tester]))).rows.length,0));
+await check('builder has no tester session for own campaign',async()=>assert.equal((await as(owner,()=>db.query('select c.id from public.ft_members m join public.ft_campaigns c on c.id=m.campaign_id where m.tester_id=$1',[owner]))).rows.length,0));
 const path=`${tester}/${id}/test.png`;
 await check('uploading into another account folder fails',async()=>assert.rejects(as(tester,()=>db.query("insert into storage.objects(bucket_id,name,metadata) values('fieldtest-evidence',$1,'{\"size\":100}')",[`${owner}/${id}/spoof.png`])),/row-level security/));
 await check('joined tester uploads own evidence',async()=>{await as(tester,()=>db.query("insert into storage.objects(bucket_id,name,metadata) values('fieldtest-evidence',$1,'{\"size\":100}')",[path]))});
@@ -66,6 +69,7 @@ await check('a finalized review cannot be changed',async()=>assert.rejects(as(ow
 await check('referenced evidence cannot be deleted by uploader',async()=>assert.equal((await as(tester,()=>db.query('delete from storage.objects returning id'))).rows.length,0));
 await check('campaign instructions cannot be edited by a direct client write',async()=>assert.rejects(as(owner,()=>db.query("update public.ft_campaigns set criteria='Different criteria' where id=$1",[id])),/permission denied/));
 await db.query("update public.ft_campaigns set deadline='2000-01-01' where id=$1",[id]);
+await check('closed session remains readable for receipt history',async()=>assert.equal((await as(tester,()=>db.query('select c.id from public.ft_members m join public.ft_campaigns c on c.id=m.campaign_id where m.tester_id=$1',[tester]))).rows[0].id,id));
 await check('late submissions fail at database boundary',async()=>assert.rejects(as(tester,()=>db.query('select public.ft_submit_feedback($1,$2::jsonb)',[id,response])),/Campaign closed/));
 await db.close();
 process.stdout.write(`\n${checks} PostgreSQL access and workflow checks passed.\n`);
