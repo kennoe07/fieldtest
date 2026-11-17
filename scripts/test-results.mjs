@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {campaignResults,publicProductUrl,resultsMarkdown} from '../src/resultsModel.ts';
+let passed=0;
+function check(name,fn){fn();passed++;console.log(`PASS ${name}`)}
+for(const url of ['http://localhost:5173','http://127.0.0.1','http://127.1','http://2130706433','http://10.0.0.1','http://192.168.1.1','http://172.16.0.1','http://169.254.1.1','http://[::1]','http://printer.local'])check(`local address rejected: ${url}`,()=>assert.throws(()=>publicProductUrl(url)));
+check('public deployment accepted',()=>assert.equal(publicProductUrl('https://fieldtest-two.vercel.app'),'https://fieldtest-two.vercel.app/'));
+check('embedded credentials rejected',()=>assert.throws(()=>publicProductUrl('https://user:password@example.com')));
+check('non-web schemes rejected',()=>assert.throws(()=>publicProductUrl('javascript:alert(1)')));
+const c={id:'c1',name:'Pilot',description:'Find onboarding problems',tasks:['Open product','Find settings']};
+const entry=(id,status,outcomes,campaignId='c1')=>({id,status,campaignId,testerName:id,responses:outcomes.map((outcome,i)=>({task:c.tasks[i],outcome,expected:'Expected response',actual:`Actual response ${id}`,evidence:[]}))});
+const entries=[entry('one','Approved',['Blocked','Completed']),entry('two','Submitted',['Partly completed','Completed']),entry('three','Revision requested',['Completed','Blocked']),entry('four','Rejected',['Blocked','Blocked']),entry('other','Approved',['Blocked','Blocked'],'c2')];
+check('campaign isolation and rejected exclusions',()=>{const r=campaignResults(c,entries);assert.equal(r.total,4);assert.equal(r.included,3);assert.equal(r.rejected,1)});
+check('task counts reflect latest stored outcomes',()=>{const t=campaignResults(c,entries).tasks[0];assert.deepEqual([t.completed,t.partial,t.blocked,t.total],[1,1,1,3])});
+check('review states remain separate',()=>{const r=campaignResults(c,entries);assert.deepEqual([r.approved,r.awaitingReview,r.revisions],[1,1,1])});
+check('friction ranking uses reports, not invented severity',()=>assert.deepEqual(campaignResults(c,entries).friction.map(t=>t.index),[0,1]));
+check('evidence retains exact source submission and text',()=>{const e=campaignResults(c,entries).tasks[0].evidence[0];assert.equal(e.submissionId,'one');assert.equal(e.actual,'Actual response one')});
+check('mismatched task text is not attributed',()=>{const changed=structuredClone(entries[0]);changed.responses[0].task='Different task';assert.equal(campaignResults(c,[changed]).tasks[0].total,0)});
+check('empty campaign has no findings',()=>{const r=campaignResults(c,[]);assert.equal(r.included,0);assert.equal(r.friction.length,0)});
+check('export includes source IDs and sample limitations',()=>{const text=resultsMarkdown(c,entries);assert.ok(text.includes('Submission: one'));assert.ok(text.includes('not population estimates'));assert.ok(!text.includes('Submission: four'));assert.ok(!text.includes('Submission: other'))});
+console.log(`${passed} campaign results and URL checks passed`);

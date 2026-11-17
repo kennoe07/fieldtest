@@ -10,7 +10,8 @@
     "test:cloud": "node scripts/test-cloud.mjs",
     "test:wallet": "node scripts/test-wallet.mjs",
     "test:rewards": "node scripts/test-reward-transactions.mjs",
-    "test:drafts": "node scripts/test-drafts.mjs"
+    "test:drafts": "node scripts/test-drafts.mjs",
+    "test:results": "node scripts/test-results.mjs"
   },
   "dependencies": {
     "@mysten/dapp-kit-react": "^2.1.45",
