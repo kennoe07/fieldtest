@@ -1,0 +1,41 @@
+/* Short, finite transitions. No animation library or scroll event listeners. */
+@keyframes fieldtest-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fieldtest-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-meta { animation: fieldtest-enter 420ms ease-out both; }
+  .hero-statement { animation: fieldtest-enter 460ms 80ms ease-out both; }
+  .lens { animation-duration: 900ms; }
+  .dashboard-heading, .detail-summary, .detail-grid, .submission-grid,
+  .global-findings, .findings-panel, .empty-state {
+    animation: fieldtest-enter 260ms ease-out both;
+  }
+  .dashboard-stats { animation: fieldtest-enter 300ms 30ms ease-out both; }
+  .campaign-list { animation: fieldtest-enter 320ms 50ms ease-out both; }
+  .campaign-dialog[open] { animation: fieldtest-enter 180ms ease-out; }
+  .campaign-dialog::backdrop { animation: fieldtest-fade 180ms ease-out; }
+  .faq-item > p, .findings-panel blockquote { animation: fieldtest-enter 180ms ease-out; }
+  .toast { animation: fieldtest-fade 180ms ease-out; }
+  .demo-submission-list, .signal-finding { animation: fieldtest-fade 220ms ease-out; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-links a { position: relative; }
+  .nav-links a::after {
+    content: ''; position: absolute; left: 0; bottom: -6px; height: 1px;
+    width: 100%; background: currentColor; transform: scaleX(0); transform-origin: left;
+    transition: transform 160ms ease-out;
+  }
+  .nav-links a:hover::after, .nav-links a:focus-visible::after { transform: scaleX(1); }
+  .campaign-row > svg { transition: transform 160ms ease-out; }
+  .campaign-row:hover > svg { transform: translate(2px, -2px); }
+}
+@media (max-width: 560px) {
+  /* Keep continuous decorative motion off small screens. */
+  .ticker > div { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
