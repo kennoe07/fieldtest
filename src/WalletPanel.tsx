@@ -6,6 +6,8 @@ import { requireCloud } from './cloudClient';
 
 const kit = createDAppKit({
   networks: ['mainnet'],
+  slushWalletConfig: null,
+  autoConnect: false,
   createClient: network => new SuiGrpcClient({ network, baseUrl: 'https://fullnode.mainnet.sui.io:443' }),
 });
 
@@ -38,6 +40,7 @@ function Connection() {
     <h2>Your reward wallet.</h2>
     <p>Connect a Sui wallet to preview your reward address. Connecting does not move funds or request a signature.</p>
     <ConnectButton />
+    <p className="account-footnote">Choose an installed Sui wallet extension from the wallet selector. Unlock the extension first. The separate Slush web-wallet sign-in option is disabled in this version.</p>
     {account && <p role="status" style={{ overflowWrap: 'anywhere' }}>Connected address: {account.address}</p>}
     {error&&<p role="alert" className="research-error">{error}</p>}
     {linked?<p role="status" style={{overflowWrap:'anywhere'}}>Verified reward address: {linked}{account&&account.address!==linked?' — your connected wallet is different. Connect the verified wallet for future reward actions.':''}</p>:account&&<>
