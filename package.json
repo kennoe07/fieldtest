@@ -10,6 +10,8 @@
     "test:cloud": "node scripts/test-cloud.mjs"
   },
   "dependencies": {
+    "@mysten/dapp-kit-react": "^2.1.45",
+    "@mysten/sui": "^2.39.1",
     "@supabase/supabase-js": "^2.119.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
