@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {buildRewardTransaction,suiToMist} from '../lib/reward-transactions.mjs';
+import {bcs} from '@mysten/sui/bcs';
+let passed=0;
+function check(name,fn){fn();passed++;console.log(`PASS ${name}`)}
+check('exact smallest SUI unit',()=>assert.equal(suiToMist('0.000000001'),'1'));
+check('exact decimal conversion without float',()=>assert.equal(suiToMist('1.000000001'),'1000000001'));
+check('precision above 9 rejected',()=>assert.throws(()=>suiToMist('1.0000000001')));
+check('negative amount rejected',()=>assert.throws(()=>suiToMist('-1')));
+check('zero amount rejected',()=>assert.throws(()=>suiToMist('0')));
+check('numeric float input rejected',()=>assert.throws(()=>suiToMist(0.1)));
+const base={packageId:'0x'+'1'.repeat(64),campaignId:'0x'+'2'.repeat(64),tester:'0x'+'3'.repeat(64),rewardMist:'1000000001',slots:'2',submitUntilMs:'2000000000000',reviewUntilMs:'2000100000000',termsHash:'ab'.repeat(32),submissionHash:'cd'.repeat(32)};
+for(const action of ['create','enroll','submit','approve','refund'])check(`${action} targets correct Move function and coin type`,()=>{const data=buildRewardTransaction({...base,action}).getData();const call=data.commands.at(-1).MoveCall;assert.equal(call.function,action);assert.equal(call.module,'rewards');assert.equal(call.package,base.packageId);assert.equal(call.typeArguments[0],'0x2::sui::SUI')});
+check('funding splits exact reward times slots',()=>{const data=buildRewardTransaction({...base,action:'create'}).getData();const amount=data.commands[0].SplitCoins.amounts[0];const pure=data.inputs[amount.Input].Pure.bytes;assert.equal(bcs.u64().parse(Buffer.from(pure,'base64')),'2000000002')});
+check('overflow blocked before wallet',()=>assert.throws(()=>buildRewardTransaction({...base,action:'create',rewardMist:((1n<<64n)-1n).toString()})));
+check('invalid package blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'refund',packageId:'bad'})));
+check('invalid hash blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'approve',submissionHash:'ab'})));
+check('invalid review window blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'create',reviewUntilMs:base.submitUntilMs})));
+check('oversized seats blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'create',slots:'51'})));
+check('unknown operation blocked',()=>assert.throws(()=>buildRewardTransaction({...base,action:'withdraw'})));
+console.log(`${passed} transaction preparation checks passed`);
