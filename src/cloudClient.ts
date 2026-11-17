@@ -58,5 +58,9 @@ export async function saveCloudSubmission(c:Campaign,input:Pick<Submission,'test
   }
 }
 export async function saveCloudReview(id:string,status:Exclude<Submission['status'],'Submitted'>,note:string){
-  const {error}=await requireCloud().rpc('ft_review_submission',{submission:id,decision:status,note});if(error)throw error;
+  const cleanNote=note.trim();
+  if(status!=='Approved'&&cleanNote.length<10)throw new Error('Add a review note of at least 10 characters before requesting a revision or rejecting feedback.');
+  if(cleanNote.length>2000)throw new Error('Keep the review note within 2,000 characters.');
+  const {error}=await requireCloud().rpc('ft_review_submission',{submission:id,decision:status,note:cleanNote});
+  if(error)throw new Error(error.message==='Invalid review decision or note'?'Add a review note of at least 10 characters before requesting a revision or rejecting feedback.':error.message);
 }
