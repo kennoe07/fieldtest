@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { campaignResults, resultsMarkdown } from './resultsModel';
 import type { Campaign, Submission } from './researchStore';
 import './results.css';
+import AiFindings from './AiFindings';
 
 export default function CampaignResults({campaign,items}:{campaign:Campaign;items:Submission[]}){
   const r=campaignResults(campaign,items);const [expanded,setExpanded]=useState<number|null>(null);
@@ -16,5 +17,6 @@ export default function CampaignResults({campaign,items}:{campaign:Campaign;item
       <h3>Task outcomes and evidence</h3>
       {r.tasks.map(t=><article className="result-task" key={t.index}><h4>{t.index+1}. {t.task}</h4><div className="result-counts"><span>{t.completed} completed</span><span>{t.partial} partly completed</span><span>{t.blocked} blocked</span><span>{t.total} total responses</span></div><button className="text-button" aria-expanded={expanded===t.index} onClick={()=>setExpanded(expanded===t.index?null:t.index)}>{expanded===t.index?'Hide':'Read'} original responses</button>{expanded===t.index&&<div>{t.evidence.map(e=><blockquote key={e.submissionId}><p>{e.actual}</p><footer>{e.tester} · {e.outcome} · {e.status} · {e.evidence.length} screenshot{e.evidence.length===1?'':'s'}</footer><button className="text-button" onClick={()=>source(e.submissionId)}>View full feedback and screenshots</button></blockquote>)}</div>}</article>)}
     </>}
+    <AiFindings key={campaign.id} campaignId={campaign.id} revision={items.map(s=>s.id+':'+s.updatedAt+':'+s.status).sort().join('|')}/>
   </section>;
 }

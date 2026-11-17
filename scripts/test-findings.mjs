@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+import {snapshot,validateFindings,generateFindings} from '../server/findings.mjs';
+import handler from '../api/findings.mjs';
+let count=0;async function check(name,fn){await fn();count++;console.log(`PASS ${name}`)}
+const campaign={id:'c1',description:'Find friction',tasks:['Open product'],criteria:'Explain what happened'};
+const row={id:'s1',campaign_id:'c1',tester_name:'Private Name',status:'Approved',updated_at:'v1',responses:[{task:'Open product',outcome:'Blocked',expected:'Product opens',actual:'The link opened localhost and failed.',evidence:[{path:'private/path.png'}]}]};
+const data=snapshot(campaign,[row]);
+const valid={findings:[{observation:'One tester reported a failed product link.',suggestion:'Check the public product URL.',evidence:[{ref:'R1-T1',quote:'opened localhost and failed'}]}]};
+await check('input excludes identity and screenshot fields',()=>{const text=JSON.stringify(data.input);assert.ok(!text.includes('Private Name'));assert.ok(!text.includes('private/path'));assert.ok(!text.includes('s1'))});
+await check('rejected and foreign campaign records excluded',()=>assert.equal(snapshot(campaign,[{...row,status:'Rejected'},{...row,campaign_id:'other'}]).sources.length,0));
+await check('valid findings resolve to real source IDs',()=>assert.equal(validateFindings(valid,data.sources).findings[0].evidence[0].submissionId,'s1'));
+await check('distinct supporting sample is server counted',()=>assert.equal(validateFindings(valid,data.sources).findings[0].reportedBy,1));
+await check('invented reference rejected',()=>assert.throws(()=>validateFindings({findings:[{...valid.findings[0],evidence:[{ref:'R99-T1',quote:'opened localhost'}]}]},data.sources)));
+await check('altered quote rejected',()=>assert.throws(()=>validateFindings({findings:[{...valid.findings[0],evidence:[{ref:'R1-T1',quote:'many users lost money'}]}]},data.sources)));
+await check('unsupported finding rejected',()=>assert.throws(()=>validateFindings({findings:[{...valid.findings[0],evidence:[]}]},data.sources)));
+await check('duplicate source within finding rejected',()=>assert.throws(()=>validateFindings({findings:[{...valid.findings[0],evidence:[...valid.findings[0].evidence,...valid.findings[0].evidence]}]},data.sources)));
+await check('empty supported findings allowed',()=>assert.deepEqual(validateFindings({findings:[]},data.sources),{findings:[]}));
+await check('changed feedback invalidates fingerprint',()=>assert.notEqual(snapshot(campaign,[{...row,updated_at:'v2'}]).fingerprint,data.fingerprint));
+await check('review changes invalidate fingerprint',()=>assert.notEqual(snapshot(campaign,[{...row,status:'Revision requested'}]).fingerprint,data.fingerprint));
+await check('ordering does not change fingerprint',()=>{const second={...row,id:'s2'};assert.equal(snapshot(campaign,[row,second]).fingerprint,snapshot(campaign,[second,row]).fingerprint)});
+await check('provider payload has no tools, no stored response and strict schema',async()=>{await generateFindings(data,'fixture-key','fixture-model',async(_url,options)=>{const request=JSON.parse(options.body);assert.equal(request.store,false);assert.equal(request.text.format.strict,true);assert.equal(request.tools,undefined);assert.ok(request.instructions.includes('untrusted'));return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(valid)}]}]})}})});
+await check('provider refusal is not saved as findings',()=>assert.rejects(()=>generateFindings(data,'fixture','fixture',async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'refusal'}]}]})}))));
+await check('incomplete output rejected',()=>assert.rejects(()=>generateFindings(data,'fixture','fixture',async()=>({ok:true,json:async()=>({status:'incomplete'})}))));
+await check('provider quota error is actionable',()=>assert.rejects(()=>generateFindings(data,'fixture','fixture',async()=>({ok:false,status:429})),/quota/));
+await check('oversized input rejected before provider call',async()=>{let called=false;await assert.rejects(()=>generateFindings({...data,input:{text:'x'.repeat(60001)}},'fixture','fixture',async()=>{called=true}),/limit/);assert.equal(called,false)});
+async function http(req){const r={setHeader(){},status(code){this.code=code;return this},json(body){this.body=body;return this}};await handler(req,r);return r}
+await check('API rejects cross-origin calls',async()=>assert.equal((await http({method:'POST',headers:{origin:'https://evil.example'}})).code,403));
+await check('API rejects missing authentication',async()=>assert.equal((await http({method:'POST',headers:{origin:'https://fieldtest-two.vercel.app'}})).code,401));
+
+const db=new PGlite(),owner='11111111-1111-4111-8111-111111111111',tester='22222222-2222-4222-8222-222222222222',cid='33333333-3333-4333-8333-333333333333';
+await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema fieldtest_private;create table auth.users(id uuid primary key);insert into auth.users values('${owner}'),('${tester}');create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;create table public.ft_campaigns(id uuid primary key,owner_id uuid);insert into public.ft_campaigns values('${cid}','${owner}');create function fieldtest_private.is_owner(campaign uuid) returns bool language sql stable security definer set search_path='' as $$select exists(select 1 from public.ft_campaigns where id=campaign and owner_id=auth.uid())$$;grant usage on schema auth,fieldtest_private to authenticated;grant execute on function fieldtest_private.is_owner(uuid) to authenticated;`);
+await db.exec(await readFile(new URL('../supabase/migrations/003_ai_findings.sql',import.meta.url),'utf8'));
+async function as(role,user,fn){await db.exec(`set role ${role};select set_config('request.jwt.claim.sub','${user??''}',false)`);try{return await fn()}finally{await db.exec('reset role')}}
+const hash='a'.repeat(64);const reserve=()=>db.query('select public.ft_reserve_ai_run($1,$2) as id',[cid,hash]);
+await check('tester cannot reserve owner generation',()=>as('authenticated',tester,()=>assert.rejects(reserve)));
+let run;
+await check('owner reserves generation lease',()=>as('authenticated',owner,async()=>{run=(await reserve()).rows[0].id;assert.ok(run)}));
+await check('concurrent or repeated generation is blocked',()=>as('authenticated',owner,()=>assert.rejects(reserve,/running or cooling/)));
+await check('browser cannot persist fabricated report',()=>as('authenticated',owner,()=>assert.rejects(()=>db.query('select public.ft_finish_ai_run($1,$2,$3,$4)',[run,owner,valid,'fixture']))));
+await check('wrong owner cannot finish lease',()=>as('service_role',null,()=>assert.rejects(()=>db.query('select public.ft_finish_ai_run($1,$2,$3,$4)',[run,tester,valid,'fixture']))));
+await check('server saves validated report',()=>as('service_role',null,()=>db.query('select public.ft_finish_ai_run($1,$2,$3,$4)',[run,owner,validateFindings(valid,data.sources),'fixture'])));
+await check('owner can read saved report',()=>as('authenticated',owner,async()=>assert.equal((await db.query('select * from public.ft_ai_reports')).rows.length,1)));
+await check('tester cannot read builder report',()=>as('authenticated',tester,async()=>assert.equal((await db.query('select * from public.ft_ai_reports')).rows.length,0)));
+await check('completed lease cannot be reused',()=>as('service_role',null,()=>assert.rejects(()=>db.query('select public.ft_finish_ai_run($1,$2,$3,$4)',[run,owner,valid,'fixture']))));
+await check('direct browser writes are denied',()=>as('authenticated',owner,()=>assert.rejects(()=>db.query('delete from public.ft_ai_reports'))));
+await db.exec(`update fieldtest_private.ai_runs set created_at=now()-interval '1 hour';insert into fieldtest_private.ai_runs(owner_id,campaign_id,source_hash,finished) select '${owner}','${cid}','${hash}',true from generate_series(1,4)`);
+await check('per-account daily cost cap enforced',()=>as('authenticated',owner,()=>assert.rejects(reserve,/Daily generation limit/)));
+await db.close();console.log(`${count} AI evidence and access checks passed`);
