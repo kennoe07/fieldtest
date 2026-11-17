@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowRight, Plus, Search, ChevronDown, ChevronRight, X, C
 import './styles.css';
 import './theme.css';
 import './motion.css';
+import './readability.css';
 import Landing from './Landing';
 const cloudConfigured=Boolean(import.meta.env.VITE_SUPABASE_URL&&import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 const CloudWorkspace=React.lazy(()=>import('./CloudWorkspace'));

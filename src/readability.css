@@ -1,0 +1,106 @@
+/* Readable supporting copy at every breakpoint; display type keeps its hierarchy. */
+body{font-size:16px;line-height:1.6}
+.eyebrow,.micro-label,.editorial-label,.research-panel-label{line-height:1.6;letter-spacing:.06em}
+.button,.text-button,.account-nav,.nav-links,.signal-footer button,.signal-footer a{font-size:15px}
+.button,.account-nav,.signal-footer button,.signal-footer a{min-height:44px}
+.nav-links{gap:28px}
+.nav-inner{gap:24px}
+.hero-bottom>p,.editorial-title>p,.stage-content>p:not(.micro-label),.faq-item>p,
+.research-panel>p,.research-notice p,.research-field,.research-field textarea,.research-field>input,
+.response-details p,.review-answer p,.review-note p,.summary-text,.research-checkbox,
+.account-card>p,.cloud-campaign-form>p,.cloud-tester-history>p,.local-submissions-heading p{font-size:16px;line-height:1.75}
+.research-field textarea,.research-field>input,.campaign-dialog input,.campaign-dialog textarea{font-size:16px}
+.research-field>small,.account-card .account-footnote,.attachment-help,.session-note,
+.evidence-image figcaption,.response-details p>strong{font-size:14px;line-height:1.7}
+.signal-footer>div{font-size:14px;line-height:1.7;flex-wrap:wrap;row-gap:16px}
+.signal-footer button{font-size:15px;padding:8px 0}
+.signal-footer>div:last-child{gap:16px 28px}
+.signal-closing .micro-label{font-size:14px;line-height:1.6}
+.footer-wordmark{font-size:clamp(56px,11.5vw,164px)}
+.hero-meta{font-size:14px;gap:24px}
+.hero-meta>div>p{font-size:14px;line-height:1.7}
+.hero-index>span{font-size:14px}
+.hero-scroll{font-size:14px}
+.lens-coordinate{font-size:14px}
+.hero-bottom{align-items:center}
+.hero-bottom>p{max-width:480px}
+.editorial-title>p{max-width:360px}
+.product-stage-top,.product-stage-bottom{flex-wrap:wrap;gap:16px}
+.product-demo>aside{width:205px}
+.product-demo>aside p,.product-demo>aside small{color:#b5b5ae}
+.demo-breadcrumb{flex-wrap:wrap;line-height:1.6;color:#aaa9a1}
+.demo-stats{gap:12px}
+.demo-stats p{line-height:1.5;color:#b4b4aa}
+.demo-tabs{flex-wrap:wrap;gap:18px}
+.signal-finding p{font-size:15px;color:#c2b6aa}
+.demo-observation{align-items:flex-start;line-height:1.6}
+.stage-tags{flex-wrap:wrap}
+.stage-tags>span{line-height:1.5}
+.campaign-name,.cloud-session-bar>span,.receipt-id{min-width:0;overflow-wrap:anywhere}
+.campaign-row{flex-wrap:wrap}
+.status{font-size:14px;line-height:1.5;white-space:normal}
+.invitation-aside dl>div,.submission-receipt dl>div{font-size:15px;line-height:1.6;flex-wrap:wrap}
+.receipt-id{font-size:14px}
+.outcome-options label{font-size:16px;line-height:1.7}
+.session-task{font-size:15px;line-height:1.6}
+.attachment-button{max-width:none;min-height:44px}
+.cloud-session-bar{font-size:14px;flex-wrap:wrap}
+.tester-topline{flex-wrap:wrap;gap:12px}
+.research-panel,.demo-main,.stage-content{min-width:0;overflow-wrap:anywhere}
+@media(max-width:900px){
+ .nav-inner{gap:14px}.nav-links{gap:16px}
+ .nav-links{display:none}
+ .mobile-menu{display:inline-flex}
+ .nav-links.open{display:flex;position:absolute;top:76px;left:0;right:0;background:var(--paper);padding:20px 24px;border-bottom:1px solid var(--line);z-index:5;flex-wrap:wrap}
+ .hero-bottom{align-items:flex-start}.hero-bottom>p{max-width:340px}
+ .product-demo>aside{width:170px;padding:20px 12px}
+ .demo-main{padding:24px 20px}
+ .signal-closing h2{font-size:clamp(44px,8.5vw,80px)}
+}
+@media(max-width:560px){
+ .nav-inner{width:calc(100% - 32px);gap:10px}
+ .nav-cta.button{font-size:14px!important;padding:10px 12px!important;gap:6px!important}
+ .nav-cta.button{display:none}
+ .account-nav{font-size:14px;padding:8px 10px}
+ .account-nav{margin-left:auto}
+ .brand{font-size:17px;letter-spacing:1.2px}
+ .hero-index{display:none}
+ .hero-meta{padding-top:24px}
+ .hero-meta h2{font-size:34px}
+ .hero-statement{bottom:88px}
+ .hero-bottom{flex-direction:column;gap:18px}
+ .hero-bottom>p{font-size:15px;line-height:1.6;max-width:none}
+ .round-link{font-size:15px;min-height:44px;gap:14px}
+ .hero-scroll{font-size:14px;bottom:14px;max-width:calc(100% - 40px);letter-spacing:.03em}
+ .lens-coordinate{display:none}
+ .editorial-label{font-size:14px;flex-wrap:wrap;line-height:1.6}
+ .editorial-title h2,.signal-process>h2{font-size:clamp(30px,8vw,44px)}
+ .editorial-title>p{font-size:16px}
+ .product-demo>aside{display:none}
+ .demo-main{padding:22px 16px}
+ .product-stage{padding:16px 10px}
+ .demo-stats{grid-template-columns:1fr;gap:16px}
+ .demo-stats>div{padding:0;border:0}
+ .signal-finding{padding:16px 12px;gap:10px}
+ .signal-finding h4{font-size:18px}
+ .signal-finding .micro-label{font-size:14px;letter-spacing:.03em}
+ .signal-finding .text-button{font-size:14px}
+ .product-stage-bottom>span{max-width:none}
+ .stage-select button{letter-spacing:-.03em}
+ .stage-content>p:not(.micro-label),.faq-item>p{font-size:16px}
+ .faq-item button{font-size:17px}
+ .signal-closing{align-items:flex-start;gap:16px}
+ .signal-closing h2{font-size:clamp(36px,9vw,54px);letter-spacing:-.05em}
+ .closing-circle{width:64px;height:64px;flex-shrink:0}
+ .closing-circle svg{width:28px;height:28px}
+ .signal-footer>div{align-items:flex-start;gap:16px;flex-direction:column}
+ .signal-footer>div:last-child>span:nth-child(2){margin-left:0}
+ .signal-footer>div:last-child>a{width:auto}
+ .footer-wordmark{font-size:12vw;letter-spacing:-.06em}
+ .research-panel{padding:22px 18px}
+ .tester-heading h1,.submission-receipt h1{font-size:32px;letter-spacing:-.04em}
+ .session-body h2{font-size:25px}
+ .attachment-heading,.session-actions,.receipt-actions{flex-wrap:wrap;gap:14px}
+ .research-checkbox{font-size:15px}
+ .cloud-session-bar{align-items:flex-start}
+}

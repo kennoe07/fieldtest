@@ -46,7 +46,7 @@ function Connection() {
     {linked?<p role="status" style={{overflowWrap:'anywhere'}}>Verified reward address: {linked}{account&&account.address!==linked?' — your connected wallet is different. Connect the verified wallet for future reward actions.':''}</p>:account&&<>
       <p>Verify ownership to link this address to your signed-in Fieldtest account. This version fixes one wallet per account; changing it is not available yet.</p>
       <button className="button" disabled={busy} onClick={()=>void prepare()}>{busy?'Working…':'Prepare verification message'}</button>
-      {challenge&&<><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',fontSize:12}}>{challenge.message}</pre><p>Review this message. The next step requests a wallet signature, not a transaction.</p><button className="button" disabled={busy} onClick={()=>void verify()}>{busy?'Verifying…':'Sign message and link wallet'}</button></>}
+      {challenge&&<><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',fontSize:14}}>{challenge.message}</pre><p>Review this message. The next step requests a wallet signature, not a transaction.</p><button className="button" disabled={busy} onClick={()=>void verify()}>{busy?'Verifying…':'Sign message and link wallet'}</button></>}
     </>}
     <p className="account-footnote">Campaign funding and payouts are not available. Your linked address is stored with your account. Wallet signatures prove control of an address, not a unique person. Standard Ed25519, secp256k1, and secp256r1 signatures are supported; other signature types are not supported yet.</p>
   </section>;
