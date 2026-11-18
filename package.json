@@ -15,6 +15,7 @@
     "test:findings": "node scripts/test-findings.mjs",
     "test:reward-documents": "node scripts/test-reward-documents.mjs",
     "test:reward-records": "node scripts/test-reward-records.mjs",
+    "test:reward-verifier": "node scripts/test-reward-verifier.mjs",
     "test:cloud:rewards": "node scripts/test-cloud.mjs --reward-records"
   },
   "dependencies": {
