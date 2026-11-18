@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
 import {toBase58,fromHex} from '@mysten/sui/utils';
 import {CampaignBcs,EventBcs,verifyRewardTransaction,verifyAndRecordRewardEvent} from '../server/reward-verifier.mjs';
 import {documentDigest} from '../src/rewardDocuments.ts';
@@ -6,7 +7,7 @@ import {MAINNET_USDC} from '../lib/reward-transactions.mjs';
 const address=n=>'0x'+n.toString(16).padStart(64,'0'),digest=n=>toBase58(new Uint8Array(32).fill(n));
 const owner=address(1),pkg=address(2),objectId=address(3),tester=address(4),hash='ab'.repeat(32);
 let checks=0;
-async function fixture(kind='Funded'){
+export async function fixture(kind='Funded'){
  const document={schema:'fieldtest-reward-terms-v1',network:'sui:mainnet',packageId:pkg,owner,asset:{coinType:MAINNET_USDC,decimals:6},rewardBaseUnits:'5000000',slots:2,submitUntilMs:'100000',reviewUntilMs:'200000'};
  const terms_hash=await documentDigest(document);
  const plan={id:'plan',network:'sui:mainnet',package_id:pkg,owner_address:owner,document,terms_hash,total_base_units:'10000000',reward_base_units:'5000000',state:kind==='Funded'?'Frozen':'Funded',chain_campaign_id:kind==='Funded'?null:objectId,remaining_base_units:'10000000'};
@@ -27,6 +28,7 @@ async function fixture(kind='Funded'){
  const reader={serviceInfo:async()=>info,transaction:async()=>tx,object:async(id,version)=>id===pkg?packageObject:objects[Number(version)-1]};
  return {input:{reader,policy,plan,transactionDigest:tx.digest,payment:{tester,submissionHash:hash}},tx,info,objects,packageObject,event,change};
 }
+if(process.argv[1]===fileURLToPath(import.meta.url)){
 for(const kind of ['Funded','Paid','Refunded']){const f=await fixture(kind);assert.equal((await verifyRewardTransaction(f.input)).kind,kind);checks++}
 const mutations=[
  ['wrong chain',f=>f.info.chainId=digest(9)],
@@ -62,3 +64,4 @@ const result=await verifyAndRecordRewardEvent({...f.input,admin:{rpc:async(name,
 assert.equal(result.inserted,true);assert.equal(params.p_amount,'5000000');assert.equal(params.p_recipient,tester);assert.equal(params.p_seq,0);checks++;
 await assert.rejects(verifyAndRecordRewardEvent({...f.input,admin:{rpc:async()=>({error:{message:'failure'}})}}));checks++;
 console.log(`${checks} reward verifier checks passed. Fixtures only; no network, signatures or transactions.`);
+}

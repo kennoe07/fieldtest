@@ -65,4 +65,26 @@ async function http(req){const r={setHeader(){},status(code){this.code=code;retu
 await check('HTTP endpoint rejects cross-origin requests',async()=>assert.equal((await http({method:'POST',headers:{origin:'https://evil.example'}})).code,403));
 await check('HTTP endpoint requires sign-in',async()=>assert.equal((await http({method:'POST',headers:{origin:'https://fieldtest-two.vercel.app'}})).code,401));
 await check('HTTP endpoint exposes no freeze or event ingestion action',async()=>assert.equal((await http({method:'POST',headers:{origin:'https://fieldtest-two.vercel.app',authorization:'Bearer fixture'},body:{campaignId:cid,action:'freeze'}})).code,400));
+if(process.argv.includes('--worker')){
+ await db.exec(await readFile(new URL('../supabase/migrations/005_reward_worker.sql',import.meta.url),'utf8'));
+ const policy='a'.repeat(64),previous='F'.repeat(44),nextDigest='G'.repeat(44);
+ await db.exec(`delete from public.ft_reward_events;update public.ft_reward_plans set state='Frozen',chain_campaign_id=null,remaining_base_units=0`);
+ await db.query('insert into public.ft_reward_worker_cursors(id,policy_hash,next_checkpoint,previous_digest) values($1,$2,$3,$4)',['fixture',policy,'10',previous]);
+ const funded={planId:plan,network:'sui:mainnet',transactionDigest:'H'.repeat(44),eventSeq:0,kind:'Funded',chainCampaignId:object,recipient:ownerAddress,amountBaseUnits:'10000000',checkpoint:'10',objectVersion:'2',transactionIndex:0};
+ const paid={...funded,transactionDigest:'J'.repeat(44),kind:'Paid',recipient:testerAddress,amountBaseUnits:'5000000',objectVersion:'4',transactionIndex:2};
+ const commit=(receipts,hash=policy,cp='10')=>db.query('select public.ft_commit_reward_checkpoint($1,$2,$3,$4,$5,$6)',['fixture',hash,cp,previous,nextDigest,receipts]);
+ await check('browser cannot read worker cursor',()=>as('authenticated',owner,()=>assert.rejects(()=>db.query('select * from public.ft_reward_worker_cursors'))));
+ await check('browser cannot commit checkpoint',()=>as('authenticated',owner,()=>assert.rejects(()=>commit([funded]))));
+ await check('changed policy cannot commit',()=>as('service_role',null,()=>assert.rejects(()=>commit([], 'b'.repeat(64)))));
+ await check('null policy cannot bypass cursor guard',()=>as('service_role',null,()=>assert.rejects(()=>commit([],null))));
+ await check('failed second receipt rolls back entire checkpoint',()=>as('service_role',null,()=>assert.rejects(()=>commit([funded,{...paid,amountBaseUnits:'1'}]))));
+ await check('rollback leaves cursor, funds and proof unchanged',async()=>{assert.equal((await db.query('select next_checkpoint from public.ft_reward_worker_cursors')).rows[0].next_checkpoint,'10');assert.equal((await db.query('select state from public.ft_reward_plans')).rows[0].state,'Frozen');assert.equal((await db.query('select * from public.ft_reward_event_proofs')).rows.length,0)});
+ await check('unordered receipt batch rejected',()=>as('service_role',null,()=>assert.rejects(()=>commit([funded,{...paid,transactionIndex:0}]))));
+ await check('wrong checkpoint proof rejected',()=>as('service_role',null,()=>assert.rejects(()=>commit([{...funded,checkpoint:'11'}]))));
+ await check('missing object version rolls back ledger write',()=>as('service_role',null,()=>assert.rejects(()=>commit([{...funded,objectVersion:null}]))));
+ await check('ledger and proof commit in transaction order',()=>as('service_role',null,()=>commit([funded,paid])));
+ await check('cursor advances once with receipts and proof',async()=>{assert.equal((await db.query('select next_checkpoint from public.ft_reward_worker_cursors')).rows[0].next_checkpoint,'11');assert.equal((await db.query('select remaining_base_units from public.ft_reward_plans')).rows[0].remaining_base_units,5000000);assert.equal((await db.query('select * from public.ft_reward_event_proofs')).rows.length,2)});
+ await check('stale concurrent worker cannot replay committed checkpoint',()=>as('service_role',null,()=>assert.rejects(()=>commit([funded,paid]))));
+ await check('empty checkpoint advances without synthetic ledger events',()=>as('service_role',null,()=>db.query('select public.ft_commit_reward_checkpoint($1,$2,$3,$4,$5,$6)',['fixture',policy,'11',nextDigest,'K'.repeat(44),[]])));
+}
 await db.close();console.log(`${count} reward storage and ledger checks passed`);
