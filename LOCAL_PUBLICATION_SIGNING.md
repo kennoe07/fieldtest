@@ -1,0 +1,17 @@
+# Local testnet publication signing
+
+Start `node scripts/publication-wallet-server.mjs` from the Fieldtest checkout, then paste `http://127.0.0.1:5188` into the Chrome profile that contains Glass. This loopback-only tool is separate from the deployed Fieldtest application and is not a Vercel route. It does not clear the unresolved deployed-site warning. If the wallet flags this page, stop; never bypass a security interstitial.
+
+The server loads the already reviewed publication artifact, verifies its SDK digest, current source/module hashes, fixed dependencies, gas budget, exact two-command structure, UpgradeCap recipient and chain expiration. It never regenerates reviewed bytes. Before requesting a signature it checks the pinned testnet identity, epoch, balance, transaction history and fresh simulation of the exact bytes.
+
+The page detects Glass through Wallet Standard. Connect selects only the reviewed testnet account. Sign uses `sui:signTransaction` or its older `sui:signTransactionBlock` equivalent. It does not use sign-and-execute. Returned bytes must be byte-for-byte identical to the reviewed transaction and the signature must cryptographically verify for its sender. Private keys and recovery phrases never enter this tool. The signature remains in process memory and is neither logged nor written to disk.
+
+Signing alone does not publish. A separate explicitly labeled Submit button calls the fixed official testnet execution endpoint with the same bytes and verified signature. It can consume up to the already reviewed 0.1 test SUI gas budget. No backend startup, page load, wallet connection, preflight or signature-storage call invokes execution. The tool has no campaign funding or USDC-transfer action.
+
+After a submission timeout, the state is uncertain and another submission is blocked. Use Check status to reconcile the original digest. Do not request a new signature or generate a new publication while the first may have executed. If the local server restarts, it has no saved signature; Check status before doing anything else. Direct preflight also reconciles the digest and blocks signing if a transaction is already found.
+
+Confirmation requires a successful checkpointed transaction and matching package ID/digest/previous transaction, plus the UpgradeCap being owned by the reviewed sender. The confirmed receipt is saved to `outputs/fieldtest-testnet-publication-receipt.json`; an existing receipt for another digest is never overwritten. Simulation predictions are not treated as a publication receipt.
+
+The HTTP server binds only 127.0.0.1:5188. It checks Host, rejects cross-site requests, requires exact Origin and a random process-local token on every POST, caps request bodies, serves only fixed routes and sends no-store/CSP/frame-denial headers. It does not expose filesystem paths or signatures over HTTP. Stop it after the review/publication session. No SQL or production environment change is required.
+
+`npm run test:publication-session` uses newly generated, unfunded fixture keys to check signature validation, actor/byte mismatch, reviewed command constraints, epoch/network failure, uncertain-submission blocking and package/capability confirmation. Tests never use the user's wallet or live chain. Local HTTP checks additionally rejected a cross-origin submit and completed a read-only live preflight. Wallet UI compatibility remains subject to the actual user-controlled Glass prompt.

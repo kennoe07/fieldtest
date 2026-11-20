@@ -21,6 +21,7 @@
     "test:reward-intents": "node scripts/test-reward-intents.mjs && node scripts/test-reward-records.mjs --worker --context --intents",
     "test:reward-testnet": "node scripts/test-reward-testnet.mjs",
     "test:reward-publication": "node scripts/test-reward-publication.mjs",
+    "test:publication-session": "node scripts/test-publication-session.mjs",
     "test:cloud:rewards": "node scripts/test-cloud.mjs --reward-records"
   },
   "dependencies": {
