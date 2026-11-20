@@ -123,5 +123,63 @@ if(process.argv.includes('--context')){
  const nextSnapshot={...snapshot,summary:revised.summary},nextDocument={...document,summary:revised.summary};
  await check('revised version gets a distinct immutable commitment',()=>as('service_role',null,async()=>{const h=(await save(nextSnapshot,nextDocument)).rows[0].hash;assert.notEqual(h,await documentDigest(document));assert.equal(h,await documentDigest(nextDocument))}));
  await check('prior committed feedback survives later revision',async()=>{const records=(await db.query('select document from public.ft_reward_commitments order by created_at')).rows;assert.equal(records.length,2);assert.ok(records.some(r=>r.document.summary===feedback.summary));assert.ok(records.some(r=>r.document.summary===revised.summary))});
+ if(process.argv.includes('--intents')){
+   await db.exec(await readFile(new URL('../supabase/migrations/007_reward_intents.sql',import.meta.url),'utf8'));
+   // Earlier ledger checks paid this fixture tester. Reset that synthetic payout
+   // so the intent checks can exercise an unpaid, funded plan independently.
+   await db.exec("delete from public.ft_reward_event_proofs where tx_digest in (select tx_digest from public.ft_reward_events where kind='Paid');delete from public.ft_reward_events where kind='Paid';update public.ft_reward_plans set remaining_base_units=total_base_units");
+   const request=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+   const prep=(n,action='submit',actor=tester,canonical=nextDocument,snap=nextSnapshot,commitment=null)=>db.query('select public.ft_prepare_reward_intent($1,$2,$3,$4,$5,$6,$7,$8) as intent',[plan,actor,request(n),action,action==='enroll'||action==='approve'?tester:null,snap,canonicalJson(canonical),commitment]);
+   const transition=(id,state,digest=null,actor=tester)=>db.query('select public.ft_transition_reward_intent($1,$2,$3,$4) as intent',[id,actor,state,digest]);
+   const bind=(id,digest='L'.repeat(44),bytes='AQID',actor=tester)=>db.query('select public.ft_bind_reward_intent($1,$2,$3,$4) as intent',[id,actor,digest,bytes]);
+   await check('browser cannot prepare a transaction intent',()=>as('authenticated',tester,()=>assert.rejects(()=>prep(1))));
+   let intent;
+   await check('server persists authoritative submit intent',()=>as('service_role',null,async()=>{intent=(await prep(1)).rows[0].intent;assert.equal(intent.payload.submissionHash,await documentDigest(nextDocument));assert.equal(intent.payload.sender,testerAddress)}));
+   await check('refresh with same request key reuses intent',()=>as('service_role',null,async()=>assert.equal((await prep(1)).rows[0].intent.id,intent.id)));
+   await check('retry with a new salt and request key reuses saved commitment',()=>as('service_role',null,async()=>{assert.equal((await prep(2,'submit',tester,{...nextDocument,salt:'e'.repeat(64)})).rows[0].intent.id,intent.id);assert.equal((await db.query('select count(*)::integer as n from public.ft_reward_commitments')).rows[0].n,2)}));
+   await check('request key cannot switch actions',()=>as('service_role',null,()=>assert.rejects(()=>prep(1,'enroll',tester))));
+   await check('another actor cannot bind saved intent',()=>as('service_role',null,()=>assert.rejects(()=>bind(intent.id,undefined,undefined,owner))));
+   await check('prepared intent can be cancelled',()=>as('service_role',null,()=>transition(intent.id,'Cancelled')));
+   await check('cancelled request stays cancelled on retry',()=>as('service_role',null,async()=>assert.equal((await prep(1)).rows[0].intent.state,'Cancelled')));
+   let armed;
+   await check('new request after unsigned cancellation creates a new intent',()=>as('service_role',null,async()=>{armed=(await prep(3)).rows[0].intent;assert.notEqual(armed.id,intent.id)}));
+   await check('binding stores exact unsigned bytes and digest',()=>as('service_role',null,async()=>assert.equal((await bind(armed.id)).rows[0].intent.state,'AwaitingWallet')));
+   await check('identical binding retry is idempotent',()=>as('service_role',null,()=>bind(armed.id)));
+   await check('bound transaction cannot be replaced',()=>as('service_role',null,()=>assert.rejects(()=>bind(armed.id,'M'.repeat(44),'BAUG'))));
+   await check('wallet cancellation cannot clear a bound transaction',()=>as('service_role',null,()=>assert.rejects(()=>transition(armed.id,'Cancelled'))));
+   await db.query("update public.ft_reward_intents set expires_at=now()-interval '1 day' where id=$1",[armed.id]);
+   await check('timeout does not release bound intent',()=>as('service_role',null,async()=>assert.equal((await prep(4)).rows[0].intent.id,armed.id)));
+   const conflictingSnapshot={...nextSnapshot,summary:'Changed while wallet is pending'},conflictingDocument={...nextDocument,summary:'Changed while wallet is pending'};
+   await db.query('update public.ft_submissions set summary=$1 where id=$2',[conflictingSnapshot.summary,row.id]);
+   await check('pending submit blocks a conflicting feedback intent',()=>as('service_role',null,()=>assert.rejects(()=>prep(40,'submit',tester,conflictingDocument,conflictingSnapshot))));
+   await check('rejected conflicting intent rolls back candidate commitment',async()=>assert.equal((await db.query('select count(*)::integer as n from public.ft_reward_commitments')).rows[0].n,2));
+   await db.query('update public.ft_submissions set summary=$1 where id=$2',[nextSnapshot.summary,row.id]);
+   await check('submitted digest must match bound transaction',()=>as('service_role',null,()=>assert.rejects(()=>transition(armed.id,'Submitted','N'.repeat(44)))));
+   await check('matching submission records pending status only',()=>as('service_role',null,()=>transition(armed.id,'Submitted','L'.repeat(44))));
+   await check('confirmation requires verified ledger proof',()=>as('service_role',null,()=>assert.rejects(()=>transition(armed.id,'Confirmed','L'.repeat(44)))));
+   await check('trusted reconciler can record confirmed execution failure',()=>as('service_role',null,()=>transition(armed.id,'Failed','L'.repeat(44))));
+   let replacement;
+   await check('new request may retry after confirmed failure',()=>as('service_role',null,async()=>{replacement=(await prep(5)).rows[0].intent;assert.notEqual(replacement.id,armed.id);assert.equal(replacement.payload.submissionHash,armed.payload.submissionHash)}));
+   await db.query("update public.ft_reward_intents set expires_at=now()-interval '1 day' where id=$1",[replacement.id]);
+   await check('expired unsigned intent cannot be armed',()=>as('service_role',null,()=>assert.rejects(()=>bind(replacement.id,'P'.repeat(44)))));
+   await check('unbound expired intent is replaced for a new request',()=>as('service_role',null,async()=>assert.notEqual((await prep(6)).rows[0].intent.id,replacement.id)));
+   await check('expired request key returns its terminal record',()=>as('service_role',null,async()=>assert.equal((await prep(5)).rows[0].intent.state,'Expired')));
+   await check('browser cannot read unsigned transaction bytes',()=>as('authenticated',tester,()=>assert.rejects(()=>db.query('select * from public.ft_reward_intents'))));
+   await check('service role cannot bypass checked intent writes',()=>as('service_role',null,()=>assert.rejects(()=>db.query('delete from public.ft_reward_intents'))));
+   await check('builder enrollment intent uses accepted tester address',()=>as('service_role',null,async()=>assert.equal((await prep(7,'enroll',owner)).rows[0].intent.payload.tester,testerAddress)));
+   await check('early refund intent rejected',()=>as('service_role',null,()=>assert.rejects(()=>prep(8,'refund',owner))));
+   const nextHash=await documentDigest(nextDocument);
+   await check('unreviewed feedback cannot prepare payout intent',()=>as('service_role',null,()=>assert.rejects(()=>prep(9,'approve',owner,nextDocument,nextSnapshot,nextHash))));
+   await as('authenticated',owner,()=>db.query('select public.ft_review_submission($1,$2,$3)',[row.id,'Approved','']));
+   let approval;
+   await check('approved exact feedback can prepare payout intent',()=>as('service_role',null,async()=>{approval=(await prep(10,'approve',owner,nextDocument,nextSnapshot,nextHash)).rows[0].intent;assert.equal(approval.payload.submissionHash,nextHash)}));
+   await as('service_role',null,()=>bind(approval.id,'Q'.repeat(44),'AQID',owner));
+   // Verified-chain ledger/proof fixtures only; no chain transaction occurs.
+   await as('service_role',null,()=>event('Q','Paid',5000000,testerAddress));
+   await db.query("insert into public.ft_reward_event_proofs(network,tx_digest,event_seq,worker_id,checkpoint,checkpoint_digest,transaction_index,object_version,policy_hash) values('sui:mainnet',$1,0,'fixture',12,$2,0,9,$3)",['Q'.repeat(44),'R'.repeat(44),'a'.repeat(64)]);
+   await check('verified matching payout receipt confirms the bound intent',()=>as('service_role',null,async()=>assert.equal((await transition(approval.id,'Confirmed','Q'.repeat(44),owner)).rows[0].intent.state,'Confirmed')));
+   await check('confirmed payout cannot be marked failed',()=>as('service_role',null,()=>assert.rejects(()=>transition(approval.id,'Failed','Q'.repeat(44),owner))));
+   await check('already paid tester cannot receive another payout intent',()=>as('service_role',null,()=>assert.rejects(()=>prep(11,'approve',owner,nextDocument,nextSnapshot,nextHash))));
+ }
 }
 await db.close();console.log(`${count} reward storage and ledger checks passed`);

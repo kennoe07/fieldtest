@@ -12,6 +12,8 @@ Apply **006_reward_context.sql** once after migrations 004 and 005. Do not rerun
 
 A review status/note change does not alter a content commitment. A revision can create another commitment while earlier versions remain available for reconciliation. Each preparation call creates a new random salt; identical SQL retries are idempotent, but calling preparation again can produce another commitment for unchanged content. A future transaction-intent layer must persist/reuse the selected commitment across wallet retries rather than regenerate it. These records do not prove that enrollment or submission transactions occurred on-chain.
 
+Update: migration 007 and `prepareRewardIntent` now reuse a saved commitment for the current feedback snapshot while atomically saving the selected transaction intent. The standalone legacy preparation helper still creates a candidate salt per call. Use the intent path for future wallet integration; see `REWARD_INTENTS_SETUP.md` for its inactive binding/execution boundaries.
+
 Both new tables deny browser access. The service role can select them but must use the checked RPCs for writes. Database administrators remain trusted. Current unfunded campaigns and their invitation/submission flows are unchanged.
 
 ## Receipt processing

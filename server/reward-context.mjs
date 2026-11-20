@@ -41,7 +41,7 @@ export function createRewardContextResolver({admin,reader,policy}){
 /** Inactive preparation helper. authenticatedTesterId must come from server
  * authentication, not a request's user ID field. The SQL RPC checks the snapshot
  * again under lock so a concurrent revision cannot commit stale feedback. */
-export async function prepareRewardSubmission({admin,planId,authenticatedTesterId}){
+export async function buildRewardSubmissionCandidate({admin,planId,authenticatedTesterId}){
  const plan=await one(admin.from('ft_reward_plans').select('*').eq('id',planId),'Reward plan unavailable');
  ensure(plan.state==='Funded'&&await documentDigest(plan.document)===plan.terms_hash,'Reward plan is not funded or its terms changed');
  const participant=await one(admin.from('ft_reward_participants').select('*').eq('plan_id',planId).eq('tester_id',authenticatedTesterId),'Accept the frozen reward terms first');
@@ -56,6 +56,12 @@ export async function prepareRewardSubmission({admin,planId,authenticatedTesterI
    ensure(!error&&data instanceof Blob&&data.size<=2097152&&['image/png','image/jpeg','image/webp'].includes(data.type),'Private evidence could not be loaded');return data;
  });
  const submissionHash=await documentDigest(document);
+ return {submissionHash,document,snapshot};
+}
+
+export async function prepareRewardSubmission(input){
+ const {admin,planId,authenticatedTesterId}=input;
+ const {submissionHash,document,snapshot}=await buildRewardSubmissionCandidate(input);
  const {data,error}=await admin.rpc('ft_save_reward_commitment',{p_plan:planId,p_tester:authenticatedTesterId,p_snapshot:snapshot,p_canonical:canonicalJson(document)});
  ensure(!error&&data===submissionHash,'Feedback changed or commitment could not be saved; reload before retrying');
  return {submissionHash,document};
