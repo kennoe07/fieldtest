@@ -1,6 +1,6 @@
 import {bcs} from '@mysten/sui/bcs';
 import {isValidTransactionDigest,toHex} from '@mysten/sui/utils';
-import {MAINNET_USDC} from '../lib/reward-transactions.mjs';
+import {rewardNetwork} from '../lib/reward-networks.mjs';
 import {documentDigest} from '../src/rewardDocuments.ts';
 
 const Seat=bcs.struct('Seat',{tester:bcs.Address,submission_hash:bcs.vector(bcs.u8()),paid:bcs.bool()});
@@ -23,15 +23,16 @@ function timestampMs(tx){requireThat(tx.timestamp&&typeof tx.timestamp.seconds==
  */
 export async function verifyRewardTransaction({reader,policy,plan,transactionDigest,payment}){
  digest(transactionDigest);address(policy.packageId);digest(policy.packageDigest);digest(policy.publishDigest);digest(policy.genesisDigest);
- requireThat(policy.network==='sui:mainnet'&&policy.coinType===MAINNET_USDC,'Unsupported deployment policy');
+ const network=rewardNetwork(policy.network);
+ requireThat(policy.coinType===network.coinType,'Unsupported deployment policy');
  requireThat(plan.network===policy.network&&plan.package_id===policy.packageId,'Plan does not match deployment policy');
  const document=plan.document;
- requireThat(document?.schema==='fieldtest-reward-terms-v1'&&document.network===policy.network&&document.packageId===policy.packageId&&document.owner===plan.owner_address&&document.asset?.coinType===MAINNET_USDC&&document.asset.decimals===6,'Invalid frozen plan document');
+ requireThat(document?.schema==='fieldtest-reward-terms-v1'&&document.network===policy.network&&document.packageId===policy.packageId&&document.owner===plan.owner_address&&document.asset?.coinType===network.coinType&&document.asset.decimals===6,'Invalid frozen plan document');
  requireThat(await documentDigest(document)===plan.terms_hash,'Frozen document digest mismatch');
  const reward=uint(document.rewardBaseUnits),slots=uint(String(document.slots)),total=reward*slots;
  requireThat(reward>0n&&slots>0n&&slots<=50n&&total<=((1n<<64n)-1n)&&total===uint(String(plan.total_base_units))&&reward===uint(String(plan.reward_base_units)),'Frozen budget mismatch');
  const info=await reader.serviceInfo();
- requireThat(info.chain==='mainnet'&&info.chainId===policy.genesisDigest,'RPC chain identity mismatch');
+ requireThat(info.chain===network.chain&&info.chainId===policy.genesisDigest,'RPC chain identity mismatch');
  const packageObject=await reader.object(policy.packageId);
  requireThat(packageObject?.objectId===policy.packageId&&packageObject.objectType==='package'&&packageObject.digest===policy.packageDigest&&uint(packageObject.version)===uint(policy.packageVersion)&&packageObject.previousTransaction===policy.publishDigest,'Unapproved package deployment');
  const tx=await reader.transaction(transactionDigest);
@@ -51,7 +52,7 @@ export async function verifyRewardTransaction({reader,policy,plan,transactionDig
  const changes=tx.effects.changedObjects?.filter(o=>o.objectId===objectId);
  requireThat(changes?.length===1,'Campaign object is absent or ambiguous in effects');const change=changes[0];
  requireThat(change.outputState===2&&change.outputDigest&&change.outputVersion!==undefined,'Campaign output is not an object write');
- const type=`${policy.packageId}::rewards::Campaign<${MAINNET_USDC}>`;
+ const type=`${policy.packageId}::rewards::Campaign<${network.coinType}>`;
  async function state(version,expectedDigest,output){
    const object=await reader.object(objectId,version);
    requireThat(object?.objectId===objectId&&uint(object.version)===uint(version)&&object.digest===expectedDigest&&object.objectType===type&&object.owner?.kind===3,'Historical campaign object identity, version, type or ownership mismatch');
