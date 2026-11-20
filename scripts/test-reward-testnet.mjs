@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {Transaction} from '@mysten/sui/transactions';
 import {toBase58,normalizeSuiAddress,fromHex} from '@mysten/sui/utils';
-import {simulateTestnetReward,CoinBcs,testnetTermsDocument} from '../server/reward-testnet.mjs';
+import {simulateTestnetReward,CoinBcs,testnetTermsDocument,setAddressBalanceGas} from '../server/reward-testnet.mjs';
 import {TESTNET_USDC,MAINNET_USDC,rewardNetwork} from '../lib/reward-networks.mjs';
 import {CampaignBcs,verifyRewardTransaction} from '../server/reward-verifier.mjs';
 import {documentDigest} from '../src/rewardDocuments.ts';
@@ -50,12 +50,31 @@ for(const [name,mutate] of [
  ['invalid clock',f=>f.coins.get(id(6)).owner.kind=1],
 ]){const f=fixture();mutate(f);await assert.rejects(simulateTestnetReward(f.input),undefined,name);assert.equal(f.simulations(),0);checks++}
 for(const response of [undefined,{digest:'wrong'}, {effects:{status:{success:false}}}]){const f=fixture();f.input.reader.simulate=async()=>response;await assert.rejects(simulateTestnetReward(f.input));checks++}
+const noEnvelope=fixture(),originalSimulate=noEnvelope.input.reader.simulate;noEnvelope.input.reader.simulate=async bytes=>{const result=await originalSimulate(bytes);delete result.digest;return result};assert.equal((await simulateTestnetReward(noEnvelope.input)).simulated,true);checks++;
 const timeout=fixture();timeout.input.reader.simulate=async()=>{throw Error('timeout')};await assert.rejects(simulateTestnetReward(timeout.input));checks++;
+for(const action of ['create','enroll','submit','approve','refund']){
+ const f=fixture(action);delete f.input.gasCoinId;f.input.gasMode='addressBalance';f.coins.delete(id(7));
+ f.input.reader.addressBalance=async(owner,type)=>{assert.equal(owner,id(4));assert.equal(type,'0x2::sui::SUI');return {coinType:type,addressBalance:2000000000n,coinBalance:0n}};
+ const result=await simulateTestnetReward(f.input),data=Transaction.from(Buffer.from(result.unsignedBytes,'base64')).getData();
+ assert.deepEqual(data.gasData.payment,[]);assert.equal(data.expiration.ValidDuring.chain,f.input.policy.genesisDigest);assert.equal(data.expiration.ValidDuring.minEpoch,'5');assert.equal(data.expiration.ValidDuring.maxEpoch,'6');assert.ok(Number.isInteger(data.expiration.ValidDuring.nonce));assert.equal(result.gasMode,'addressBalance');checks++;
+ assert.equal(data.expiration.ValidDuring.maxTimestamp,null);assert.equal(data.expiration.ValidDuring.minTimestamp,null);
+}
+for(const [name,mutate] of [
+ ['coin and address mode conflict',f=>f.input.gasCoinId=id(7)],
+ ['combined balance cannot replace spendable address balance',f=>f.input.reader.addressBalance=async()=>({coinType:'0x2::sui::SUI',balance:999999999n,coinBalance:999999999n,addressBalance:0n})],
+ ['missing balance',f=>f.input.reader.addressBalance=async()=>null],
+ ['wrong balance asset',f=>f.input.reader.addressBalance=async()=>({coinType:TESTNET_USDC,addressBalance:999999999n})],
+ ['unsafe numeric balance',f=>f.input.reader.addressBalance=async()=>({coinType:'0x2::sui::SUI',addressBalance:999999999})],
+ ['balance RPC timeout',f=>f.input.reader.addressBalance=async()=>{throw Error('timeout')}],
+ ['unknown gas mode',f=>f.input.gasMode='automatic'],
+]){const f=fixture();f.input.gasMode='addressBalance';delete f.input.gasCoinId;mutate(f);await assert.rejects(simulateTestnetReward(f.input),undefined,name);assert.equal(f.simulations(),0);checks++}
 for(const mutate of [result=>result.effects.gasUsed.storageCost=10000001n,result=>delete result.effects.gasUsed,result=>result.effects.status.error={description:'failure'},result=>result.effects.transactionDigest=digest(9)]){
  const f=fixture(),simulate=f.input.reader.simulate;f.input.reader.simulate=async bytes=>{const result=await simulate(bytes);mutate(result);return result};await assert.rejects(simulateTestnetReward(f.input));checks++;
 }
 assert.notEqual(rewardNetwork('sui:mainnet').rpc,rewardNetwork('sui:testnet').rpc);assert.throws(()=>rewardNetwork('sui:devnet'));checks++;
 assert.throws(()=>rewardNetwork('toString'));assert.throws(()=>rewardNetwork('__proto__'));checks++;
+const addressGasA=new Transaction(),addressGasB=new Transaction();setAddressBalanceGas(addressGasA,{genesisDigest:digest(3),epoch:5n});setAddressBalanceGas(addressGasB,{genesisDigest:digest(3),epoch:5n});assert.notEqual(addressGasA.getData().expiration.ValidDuring.nonce,addressGasB.getData().expiration.ValidDuring.nonce);checks++;
+for(const policy of [{genesisDigest:'bad',epoch:5n},{genesisDigest:digest(3),epoch:-1n},{genesisDigest:digest(3),epoch:5},{genesisDigest:digest(3),epoch:2n**64n-1n}]){assert.throws(()=>setAddressBalanceGas(new Transaction(),policy));checks++}
 const document=testnetTermsDocument({id:'lab',reward:5,slots:2,deadline:'2099-01-01',url:'https://example.com',criteria:'Useful feedback',tasks:['Open product'],name:'Lab',project:'Fieldtest',description:'Find friction'},id(4),id(10),'ab'.repeat(32));assert.equal(document.network,'sui:testnet');assert.equal(document.asset.coinType,TESTNET_USDC);checks++;
 for(const kind of ['Funded','Paid','Refunded']){
  const f=await receiptFixture(kind),{plan,policy}=f.input;
@@ -67,5 +86,8 @@ for(const kind of ['Funded','Paid','Refunded']){
 let request;
 const reader=rewardReaderFromClient({transactionExecutionService:{simulateTransaction(args,options){request=args;assert.equal(options.timeout,15000);return {response:Promise.resolve({transaction:{digest:'fixture'}})}}}});
 await reader.simulate(new Uint8Array([1,2,3]));assert.equal(request.checks,0);assert.equal(request.doGasSelection,false);assert.ok(request.readMask.paths.includes('transaction.effects'));checks++;
+let balanceRequest;
+const balanceReader=rewardReaderFromClient({stateService:{getBalance(args,options){balanceRequest=args;assert.equal(options.timeout,15000);return {response:Promise.resolve({balance:{coinType:'0x2::sui::SUI',addressBalance:2000000000n}})}}}});
+assert.equal((await balanceReader.addressBalance(id(4),'0x2::sui::SUI')).addressBalance,2000000000n);assert.deepEqual(balanceRequest,{owner:id(4),coinType:'0x2::sui::SUI'});checks++;
 console.log(`${checks} isolated testnet construction, simulation and receipt checks passed. No live RPC calls.`);
 

@@ -14,6 +14,7 @@ function createReader(network){
 // for actual network access; no browser supplies a client or URL.
 export function rewardReaderFromClient(client){
  return {
+   async addressBalance(owner,coinType){return (await client.stateService.getBalance({owner,coinType},{timeout:15000}).response).balance},
    async referenceGasPrice(){return (await client.ledgerService.getEpoch({readMask:{paths:['reference_gas_price']}},{timeout:15000}).response).epoch?.referenceGasPrice},
    async simulate(bytes){return (await client.transactionExecutionService.simulateTransaction({transaction:{bcs:{value:bytes}},checks:0,doGasSelection:false,readMask:{paths:['transaction.digest','transaction.effects']}},{timeout:15000}).response).transaction},
    async checkpoint(sequenceNumber){return (await client.ledgerService.getCheckpoint({checkpointId:{oneofKind:'sequenceNumber',sequenceNumber:BigInt(sequenceNumber)},readMask:{paths:['sequence_number','digest','summary','contents','transactions.digest','transactions.effects','transactions.events']}},{timeout:15000}).response).checkpoint},
