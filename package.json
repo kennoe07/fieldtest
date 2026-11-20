@@ -22,6 +22,7 @@
     "test:reward-testnet": "node scripts/test-reward-testnet.mjs",
     "test:reward-publication": "node scripts/test-reward-publication.mjs",
     "test:publication-session": "node scripts/test-publication-session.mjs",
+    "test:publication-wallet-signing": "node scripts/test-publication-wallet-signing.mjs",
     "test:cloud:rewards": "node scripts/test-cloud.mjs --reward-records"
   },
   "dependencies": {

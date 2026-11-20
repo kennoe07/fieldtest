@@ -1,5 +1,5 @@
 import {getWallets} from '@wallet-standard/app';
-import {Transaction} from '@mysten/sui/transactions';
+import {signReviewedPublication} from '../lib/publication-wallet-signing.mjs';
 const $=id=>document.getElementById(id);
 let session,token,selected,account,busy=false;
 const wallets=getWallets();
@@ -8,7 +8,7 @@ function show(data){session=data;const r=data.review;$('sender').textContent=r.s
 async function run(action){if(busy)return;busy=true;$('error').textContent='';try{await action()}catch(error){$('error').textContent=error.message}finally{busy=false;if(session)show(session)}}
 function list(){const options=wallets.get().filter(w=>/glass/i.test(w.name)&&w.features['standard:connect']&&(w.features['sui:signTransaction']||w.features['sui:signTransactionBlock']));$('wallets').replaceChildren(...options.map((wallet,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent=wallet.name;return option}));selected=options[0];$('connect').disabled=!selected;$('wallets').onchange=()=>selected=options[Number($('wallets').value)];$('walletNote').textContent=options.length?'Glass detected. Select your testnet account in the extension first.':'Glass was not detected. Open this page in the Chrome profile where Glass is installed, unlock it and reload.'}
 $('connect').onclick=()=>run(async()=>{const result=await selected.features['standard:connect'].connect();account=result.accounts.find(a=>a.address===session.review.sender&&a.chains.includes('sui:testnet'));if(!account)throw Error('Select the reviewed address on Sui Testnet in Glass, then reconnect.');$('account').textContent=`Connected: ${account.address}`});
-$('sign').onclick=()=>run(async()=>{const data=await request('/signing-data',{});if(account.address!==data.sender)throw Error('Wallet account changed');const transaction=Transaction.from(data.transactionJSON);let signed;if(selected.features['sui:signTransaction'])signed=await selected.features['sui:signTransaction'].signTransaction({transaction,account,chain:'sui:testnet'});else{const old=await selected.features['sui:signTransactionBlock'].signTransactionBlock({transactionBlock:transaction,account,chain:'sui:testnet'});signed={bytes:old.transactionBlockBytes,signature:old.signature}}show(await request('/signature',signed))});
+$('sign').onclick=()=>run(async()=>{const data=await request('/signing-data',{});show(await request('/signature',await signReviewedPublication(selected,account,data)))});
 $('submit').onclick=()=>run(async()=>show(await request('/submit',{confirmedDigest:session.review.transactionDigest})));
 $('refresh').onclick=()=>run(async()=>show(await request('/status',{})));
 wallets.on('register',list);wallets.on('unregister',list);
