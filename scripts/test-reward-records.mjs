@@ -1,12 +1,12 @@
 import {PGlite} from '@electric-sql/pglite';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import {termsDocument,documentDigest} from '../src/rewardDocuments.ts';
+import {termsDocument,documentDigest,canonicalJson,submissionDocument} from '../src/rewardDocuments.ts';
 import handler from '../api/reward-records.mjs';
 const db=new PGlite();let count=0;
 const owner='11111111-1111-4111-8111-111111111111',tester='22222222-2222-4222-8222-222222222222';
 const ownerAddress='0x'+'1'.repeat(64),testerAddress='0x'+'2'.repeat(64),pkg='0x'+'3'.repeat(64),object='0x'+'4'.repeat(64);
-await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema storage;
+await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;
 create table auth.users(id uuid primary key);insert into auth.users values('${owner}'),('${tester}');
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
 grant usage on schema auth,storage,public to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;
@@ -86,5 +86,42 @@ if(process.argv.includes('--worker')){
  await check('cursor advances once with receipts and proof',async()=>{assert.equal((await db.query('select next_checkpoint from public.ft_reward_worker_cursors')).rows[0].next_checkpoint,'11');assert.equal((await db.query('select remaining_base_units from public.ft_reward_plans')).rows[0].remaining_base_units,5000000);assert.equal((await db.query('select * from public.ft_reward_event_proofs')).rows.length,2)});
  await check('stale concurrent worker cannot replay committed checkpoint',()=>as('service_role',null,()=>assert.rejects(()=>commit([funded,paid]))));
  await check('empty checkpoint advances without synthetic ledger events',()=>as('service_role',null,()=>db.query('select public.ft_commit_reward_checkpoint($1,$2,$3,$4,$5,$6)',['fixture',policy,'11',nextDigest,'K'.repeat(44),[]])));
+}
+if(process.argv.includes('--context')){
+ await db.exec(await readFile(new URL('../supabase/migrations/006_reward_context.sql',import.meta.url),'utf8'));
+ const accept=(digest=hash)=>db.query('select public.ft_accept_reward_terms($1,$2,$3)',[plan,tester,digest]);
+ await check('browser cannot record reward terms acceptance',()=>as('authenticated',tester,()=>assert.rejects(accept)));
+ await check('tester without verified wallet cannot accept funded terms',()=>as('service_role',null,()=>assert.rejects(accept,/wallet/)));
+ await db.query('insert into public.ft_wallet_links(user_id,address) values($1,$2)',[tester,testerAddress]);
+ await check('different terms hash cannot be accepted',()=>as('service_role',null,()=>assert.rejects(()=>accept('c'.repeat(64)))));
+ await check('builder cannot enroll as own tester',()=>as('service_role',null,()=>assert.rejects(()=>db.query('select public.ft_accept_reward_terms($1,$2,$3)',[plan,owner,hash]))));
+ await check('server accepts funded terms with verified tester address',()=>as('service_role',null,accept));
+ await check('repeated acceptance is idempotent',()=>as('service_role',null,accept));
+ const feedback={testerName:'Tester',summary:'Useful feedback',responses:[{task:'Open product',outcome:'Completed',expected:'The product should open',actual:'The product opened fine',evidence:[]}]};
+ await as('authenticated',tester,()=>db.query('select public.ft_submit_feedback($1,$2)',[cid,feedback]));
+ const row=(await db.query('select * from public.ft_submissions where campaign_id=$1',[cid])).rows[0];
+ const snapshot={id:row.id,campaign_id:row.campaign_id,tester_id:row.tester_id,responses:row.responses,summary:row.summary};
+ const document=await submissionDocument(doc,{id:row.id,campaignId:cid,summary:row.summary,responses:row.responses},testerAddress,'d'.repeat(64));
+ const save=(snap=snapshot,d=document)=>db.query('select public.ft_save_reward_commitment($1,$2,$3,$4) as hash',[plan,tester,snap,canonicalJson(d)]);
+ await check('browser cannot forge a saved reward commitment',()=>as('authenticated',tester,()=>assert.rejects(save)));
+ await check('stale feedback snapshot rejected',()=>as('service_role',null,()=>assert.rejects(()=>save({...snapshot,summary:'old'}),/snapshot/)));
+ await check('substituted tester address rejected',()=>as('service_role',null,()=>assert.rejects(()=>save(snapshot,{...document,tester:ownerAddress}))));
+ await check('changed response contents rejected',()=>as('service_role',null,()=>assert.rejects(()=>save(snapshot,{...document,responses:[{...document.responses[0],actual:'Forged response'}]}))));
+ await check('database computes canonical document hash independently',()=>as('service_role',null,async()=>assert.equal((await save()).rows[0].hash,await documentDigest(document))));
+ await check('identical commitment retry creates no duplicate',()=>as('service_role',null,async()=>{await save();assert.equal((await db.query('select count(*)::integer as n from public.ft_reward_commitments')).rows[0].n,1)}));
+ await check('browser cannot read private snapshots',()=>as('authenticated',tester,()=>assert.rejects(()=>db.query('select * from public.ft_reward_commitments'))));
+ await check('browser cannot modify accepted reward address',()=>as('authenticated',tester,()=>assert.rejects(()=>db.query('update public.ft_reward_participants set address=$1',[ownerAddress]))));
+ await check('service role must use checked RPC for commitment writes',()=>as('service_role',null,()=>assert.rejects(()=>db.query('delete from public.ft_reward_commitments'))));
+ await check('review status alone preserves commitment hash',async()=>{await as('authenticated',owner,()=>db.query('select public.ft_review_submission($1,$2,$3)',[row.id,'Approved','']));await as('service_role',null,async()=>assert.equal((await save()).rows[0].hash,await documentDigest(document)))});
+ // Reset only this fixture's review state to exercise the existing revision flow.
+ await db.query("update public.ft_submissions set status='Submitted' where id=$1",[row.id]);
+ await as('authenticated',owner,()=>db.query('select public.ft_review_submission($1,$2,$3)',[row.id,'Revision requested','Please clarify the observed result']));
+ await check('requested revision blocks preparing another old commitment',()=>as('service_role',null,()=>assert.rejects(save)));
+ const revised={...feedback,summary:'Revised useful feedback'};
+ await as('authenticated',tester,()=>db.query('select public.ft_submit_feedback($1,$2)',[cid,revised]));
+ await check('old snapshot cannot be saved after resubmission',()=>as('service_role',null,()=>assert.rejects(save,/snapshot/)));
+ const nextSnapshot={...snapshot,summary:revised.summary},nextDocument={...document,summary:revised.summary};
+ await check('revised version gets a distinct immutable commitment',()=>as('service_role',null,async()=>{const h=(await save(nextSnapshot,nextDocument)).rows[0].hash;assert.notEqual(h,await documentDigest(document));assert.equal(h,await documentDigest(nextDocument))}));
+ await check('prior committed feedback survives later revision',async()=>{const records=(await db.query('select document from public.ft_reward_commitments order by created_at')).rows;assert.equal(records.length,2);assert.ok(records.some(r=>r.document.summary===feedback.summary));assert.ok(records.some(r=>r.document.summary===revised.summary))});
 }
 await db.close();console.log(`${count} reward storage and ledger checks passed`);
