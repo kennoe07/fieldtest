@@ -5,6 +5,7 @@ import './styles.css';
 import './theme.css';
 import './motion.css';
 import './readability.css';
+import './sui-palette.css';
 import Landing from './Landing';
 const cloudConfigured=Boolean(import.meta.env.VITE_SUPABASE_URL&&import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 const TestnetLab=React.lazy(()=>import('./TestnetLab'));

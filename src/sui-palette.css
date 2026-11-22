@@ -1,0 +1,42 @@
+/* Fieldtest's Sui-inspired palette. Loaded after base and readability styles. */
+:root{--paper:#071524;--ink:#eef6ff;--muted:#adc3dc;--line:#28425f;--lime:#4da2ff;--blue:#4da2ff;--blue-hover:#83c3ff;--navy:#071524;--surface:#10243b;--surface-raised:#173452;--ice:#eef6ff;color-scheme:dark}
+body{background:var(--paper);color:var(--ink)}
+::selection{background:#4da2ff;color:#041425}
+.header{background:#071524;border-color:#28425f}
+.button{background:#4da2ff;border-color:#4da2ff;color:#041425}
+.button:hover{background:#83c3ff;border-color:#83c3ff}
+.button.secondary{background:transparent;color:#e2efff;border-color:#6485aa}
+.button.secondary:hover{background:#173452;border-color:#83c3ff}
+.button:disabled{opacity:.65}
+.nav-cta.button{background:#dceeff;border-color:#dceeff;color:#09233e}
+.nav-cta.button:hover{background:#fff;border-color:#fff}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #95d5ff;outline-offset:4px}
+.brand-icon i{border-color:#4da2ff}
+.signal-hero{background:#091b30}
+.signal-sculpture{background:radial-gradient(ellipse at 65% 40%,#1764b044,transparent 70%)}
+.sculpture-halo{background:radial-gradient(ellipse,#4da2ff2e,transparent 60%)}
+.hero-grid{background-image:linear-gradient(#91caff0c 1px,transparent 1px),linear-gradient(90deg,#91caff0c 1px,transparent 1px),linear-gradient(45deg,transparent 49.4%,#91caff08 49.6%,#91caff08 50.4%,transparent 50.6%)}
+.hero-statement h1>span:first-child,.red-period,.tiny-cross,.manifesto-mark,.faq-layout h2 span{color:#68b5ff}
+.red-dot,.network>span,.live-dot{background:#68b5ff}
+.ticker,.closing-circle{background:#4da2ff;color:#041425;border-color:#4da2ff}
+.closing-circle:hover{background:#83c3ff}
+.product-stage{background:#10243b;border-color:#315476}
+.product-demo,.sidebar{background:#0a1b2e;border-color:#28425f}
+.product-demo>aside p.chosen,.sidebar-link.active{background:#183d64;color:#d5eaff;border-color:#68b5ff}
+.dashboard-stats .stat-highlight{background:#153858;border-color:#346b9a}
+.research-panel,.account-card,.campaign-dialog,.panel,.observation{background:#10243b;border-color:#315476}
+.research-field input,.research-field textarea,.research-field select,.campaign-dialog input,.campaign-dialog textarea{background:#0b1d31;color:#eef6ff;border-color:#4c6d91}
+.research-field input::placeholder,.research-field textarea::placeholder,.campaign-dialog input::placeholder,.campaign-dialog textarea::placeholder{color:#a8bfd9}
+.account-symbol{background:#163e64;color:#95d5ff;border-color:#4d8ac1}
+.peach{background:#24486e;color:#d0eaff}.mint{background:#193f55;color:#b9e6f7}.lavender{background:#303e76;color:#d6ddff}
+.toast,.cloud-notice,.research-success,.review-note{background:#153f40;color:#d7f7ed;border-color:#458d7c}
+.status.active,.status:not(.draft){background:#163c40;color:#c6efde;border-color:#427e73}
+.status.draft{background:#243b57;color:#d8e8fa;border-color:#526e8f}
+:root .research-error{background:#46232f;color:#ffdde2;border:1px solid #b76b7b}
+:root .campaign-url-warning{background:#41331e;color:#ffe7b9;border-color:#a28245}
+:root .research-notice,:root .invitation-tools{background:#142f4c;border-color:#40668e;color:#d5e8ff}
+.research-notice p,.invitation-tools p:not(.micro-label){color:#d5e8ff}
+.account-footnote,.session-note,.research-panel-label,.eyebrow,.micro-label,.editorial-label{color:#b3cae4}
+.signal-finding p,.demo-observation,.demo-breadcrumb,.demo-stats p,.product-demo>aside p,.product-demo>aside small{color:#b8cde5}
+.signal-footer{color:#b3cae4}
+@media(max-width:900px){.nav-links.open{background:#0a1b2e;border-color:#315476}}

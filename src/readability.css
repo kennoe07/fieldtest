@@ -27,12 +27,12 @@ body{font-size:16px;line-height:1.6}
 .editorial-title>p{max-width:360px}
 .product-stage-top,.product-stage-bottom{flex-wrap:wrap;gap:16px}
 .product-demo>aside{width:205px}
-.product-demo>aside p,.product-demo>aside small{color:#b5b5ae}
-.demo-breadcrumb{flex-wrap:wrap;line-height:1.6;color:#aaa9a1}
+.product-demo>aside p,.product-demo>aside small{color:#92acd1}
+.demo-breadcrumb{flex-wrap:wrap;line-height:1.6;color:#829fc9}
 .demo-stats{gap:12px}
-.demo-stats p{line-height:1.5;color:#b4b4aa}
+.demo-stats p{line-height:1.5;color:#8fa9cf}
 .demo-tabs{flex-wrap:wrap;gap:18px}
-.signal-finding p{font-size:15px;color:#c2b6aa}
+.signal-finding p{font-size:15px;color:#99b1d3}
 .demo-observation{align-items:flex-start;line-height:1.6}
 .stage-tags{flex-wrap:wrap}
 .stage-tags>span{line-height:1.5}
