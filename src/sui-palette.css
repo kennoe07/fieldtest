@@ -3,6 +3,11 @@
 body{background:var(--paper);color:var(--ink)}
 ::selection{background:#4da2ff;color:#041425}
 .header{background:#071524;border-color:#28425f}
+.header .account-nav{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;background:#173f66;border:1px solid #4d91cf;border-radius:4px;color:#e8f4ff;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .18s,border-color .18s}
+.header .account-nav:hover{background:#245985;border-color:#83c3ff}
+.header .account-nav:active{background:#123554}
+.header .account-nav:focus-visible{outline:3px solid #95d5ff;outline-offset:4px}
+@media(max-width:560px){.header .account-nav{padding:8px 12px}}
 .button{background:#4da2ff;border-color:#4da2ff;color:#041425}
 .button:hover{background:#83c3ff;border-color:#83c3ff}
 .button.secondary{background:transparent;color:#e2efff;border-color:#6485aa}
