@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:testnet": "node scripts/start-testnet-lab.mjs",
+    "test:testnet-lab": "node scripts/test-testnet-lab.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:cloud": "node scripts/test-cloud.mjs",

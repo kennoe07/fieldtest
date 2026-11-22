@@ -21,6 +21,6 @@ export default function RewardPreview({campaign}:{campaign:Campaign}){
  {recordError&&<p className="research-error" role="alert">{recordError}</p>}
  {records?.plan?<><h3>Stored reward terms</h3><p>State: {records.plan.state==='Frozen'?'Frozen — not funded':records.plan.state}</p><p style={{overflowWrap:'anywhere'}}>Terms digest: {records.plan.terms_hash}</p><p>Frozen review cutoff: {new Date(Number(records.plan.document.reviewUntilMs)).toLocaleString()}</p><h3>Recorded chain events</h3>{!records.events.length?<p>No chain events recorded.</p>:records.events.map(e=><p key={e.tx_digest+':'+e.event_seq} style={{overflowWrap:'anywhere'}}>{e.kind} · {e.amount_base_units} USDC base units · Transaction {e.tx_digest}</p>)}</>:<p>{records?'No frozen reward plan or payment records exist for this campaign.':'Stored reward records have not loaded.'}</p>}
  <p role="status">{walletStatus}</p>{wallet&&<p style={{overflowWrap:'anywhere'}}>Verified address: {wallet}</p>}{expired&&<p className="campaign-url-warning">This campaign’s submission deadline has passed. Create a future campaign before preparing funding.</p>}
- <p>Funding is unavailable while the contract is unpublished and wallet testing is paused for the Slush review. No gas estimate or balance check has been performed.</p>
+ <p>Mainnet funding is not enabled. The separate local testnet lab supports test-token funding reviews; this cloud preview has not checked balances or estimated gas.</p>
  </section>;
 }

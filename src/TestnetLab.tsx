@@ -1,0 +1,25 @@
+import {useState} from 'react';
+import './research.css';
+type Summary={owner:string;tester:string;campaignId:string;closed:boolean;remainingUsdc:string;checkedAt:string;receipts:{kind:string;amountUsdc:string;digest:string;checkpoint:string}[]};
+type Review={path:string;owner:string;fundingUsdc:string;rewardUsdc:string;slots:number;submitUntil:string;refundAvailableAt:string;gasBudgetMist:string;digest:string;expiresAt:string};
+export default function TestnetLab(){
+ const [summary,setSummary]=useState<Summary|null>(null),[review,setReview]=useState<Review|null>(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[copied,setCopied]=useState(false);
+ async function request(action:'status'|'prepare'){
+  setBusy(action);setError('');setCopied(false);
+  try{const response=await fetch('/__testnet-lab/'+action,{method:action==='prepare'?'POST':'GET',headers:{Accept:'application/json'}});if(!response.headers.get('content-type')?.includes('application/json'))throw Error('Start this page with npm run dev:testnet.');const data=await response.json();if(!response.ok)throw Error(data.error);if(action==='status')setSummary(data);else setReview(data)}catch(e){setError(e instanceof Error?e.message:'The testnet request failed.')}finally{setBusy('')}
+ }
+ const commands=review?`$ftRoot = "C:\\Users\\kenno\\Documents\\Codex\\2026-11-17\\yo-codex-parse-this-link-carefully"
+$ftCli = "$ftRoot\\work\\sui-bin\\sui.exe"
+$env:SUI_CONFIG_DIR = "$env:LOCALAPPDATA\\Fieldtest\\SuiTestnet"
+& $ftCli client switch --address fieldtest-testnet --env testnet
+$fundingReview = Get-Content -LiteralPath '${review.path.replace(/'/g,"''")}' -Raw | ConvertFrom-Json
+& $ftCli client --client.env testnet serialized-tx $fundingReview.transaction.unsignedBytes --serialize-signed-transaction > "$env:SUI_CONFIG_DIR\\fieldtest-ui-funding-signed.txt"
+if ($LASTEXITCODE -eq 0) { "Funding signed. Not submitted." }`:'';
+ return <main className="tester-shell"><p className="eyebrow">FIELDTEST / SUI TESTNET LAB</p><h1>Test the reward flow.</h1><p>Use test tokens to review funding, tester payments and unused-funds refunds. This local lab stays separate from your cloud campaigns.</p>
+ <section className="research-panel"><h2>Completed escrow trial</h2><p>Check the funding, payout and refund against the published contract and confirmed chain records.</p><button className="button" disabled={!!busy} onClick={()=>void request('status')}>{busy==='status'?'Checking the chain…':'Verify completed trial'}</button>
+ {summary&&<><p role="status">Verified {new Date(summary.checkedAt).toLocaleString()}. Campaign closed · {summary.remainingUsdc} test USDC remaining.</p><dl style={{overflowWrap:'anywhere'}}><dt>Builder</dt><dd>{summary.owner}</dd><dt>Tester</dt><dd>{summary.tester}</dd><dt>Campaign</dt><dd>{summary.campaignId}</dd></dl>{summary.receipts.map(r=><article key={r.digest}><h3>{r.kind} · {r.amountUsdc} test USDC</h3><p style={{overflowWrap:'anywhere'}}>Transaction: {r.digest}<br/>Checkpoint: {r.checkpoint}</p></article>)}</>}
+ </section>
+ <section className="research-panel"><h2>Prepare a new funding review</h2><p>The builder deposits 10 test USDC for two seats at 5 test USDC each. Submissions close 45 minutes after preparation, followed by a 15-minute review window. These deadlines become fixed when funded.</p><p>Preparing checks the builder’s tokens and simulates the deposit. Signing and submission are separate steps. Gas is capped at 0.01 test SUI.</p><button className="button" disabled={!!busy||!!review} onClick={()=>void request('prepare')}>{busy==='prepare'?'Preparing and simulating…':'Prepare 10 test USDC funding review'}</button>
+ {review&&<><h3>Funding review ready</h3><p role="status">Simulation passed. Nothing has been signed or submitted.</p><p>Deposit: {review.fundingUsdc} test USDC · {review.slots} seats · {review.rewardUsdc} test USDC per tester</p><p>Submissions close: {new Date(review.submitUntil).toLocaleString()}<br/>Refund available: {new Date(review.refundAvailableAt).toLocaleString()}<br/>Prepare again if not signed by: {new Date(review.expiresAt).toLocaleString()}</p><p style={{overflowWrap:'anywhere'}}>Builder: {review.owner}<br/>Review file: {review.path}</p><h3>Sign in your VS Code terminal</h3><p>Review the amount and deadlines above, then run these commands. Share only the completion message here so the actual signed bytes can be checked before submission.</p><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',fontSize:16,lineHeight:1.6}}>{commands}</pre><button className="button secondary" onClick={()=>{void navigator.clipboard.writeText(commands).then(()=>setCopied(true)).catch(()=>setError('Could not copy. Select the commands above manually.'))}}>{copied?'Commands copied':'Copy signing commands'}</button><p>After signing, keep this review file. Do not prepare another transaction until this attempt is confirmed, cancelled or proven expired.</p></>}
+ </section>{error&&<p className="research-error" role="alert">{error}</p>}<p>Mainnet payments and cloud payment records remain disabled. This page never reads private keys or submits transactions.</p></main>;
+}
