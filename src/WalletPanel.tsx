@@ -39,7 +39,7 @@ function Connection() {
     <p className="eyebrow">SUI / MAINNET</p>
     <h2>Your reward wallet.</h2>
     <p>Connect a Sui wallet to preview your reward address. Connecting does not move funds or request a signature.</p>
-    <ConnectButton />
+    <ConnectButton className="fieldtest-wallet-connect" />
     <p className="account-footnote">Choose an installed Sui wallet extension from the wallet selector. Unlock the extension first. The separate Slush web-wallet sign-in option is disabled in this version.</p>
     {account && <p role="status" style={{ overflowWrap: 'anywhere' }}>Connected address: {account.address}</p>}
     {error&&<p role="alert" className="research-error">{error}</p>}
