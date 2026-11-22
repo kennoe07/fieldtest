@@ -1,0 +1,52 @@
+/* Motion adds feedback without delaying actions or hiding content. */
+@keyframes fieldtest-blue-drift{
+  0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.6}
+  50%{transform:translate3d(2%,-2%,0) scale(1.06);opacity:.95}
+}
+@keyframes fieldtest-lens-light{
+  0%,100%{transform:rotate(-6deg);opacity:.5}
+  50%{transform:rotate(8deg);opacity:.9}
+}
+@keyframes fieldtest-panel-in{
+  from{opacity:.3;transform:translateY(7px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes fieldtest-confirm{
+  from{opacity:0;transform:scale(.8)}
+  to{opacity:1;transform:scale(1)}
+}
+@media(prefers-reduced-motion:no-preference){
+  .editorial-home .sculpture-halo{animation:fieldtest-blue-drift 16s ease-in-out infinite}
+  .editorial-home .lens-shine{animation:fieldtest-lens-light 12s ease-in-out infinite}
+  .signal-hero:not([data-in-view]) .sculpture-halo,
+  .signal-hero:not([data-in-view]) .lens-shine,
+  .editorial-home[data-page-hidden] .sculpture-halo,
+  .editorial-home[data-page-hidden] .lens-shine,
+  .editorial-home[data-page-hidden] .ticker>div{animation-play-state:paused}
+  .editorial-home .stage-content{animation:fieldtest-panel-in 280ms cubic-bezier(.2,.65,.3,1) both}
+  .editorial-home .faq-item>p{animation:fieldtest-panel-in 200ms ease-out}
+  .editorial-home .faq-item svg{transition:transform 200ms ease-out}
+  .editorial-home .demo-tabs button,.detail-tabs button,.filter-tabs button{transition:color 160ms ease-out,background-color 160ms ease-out,border-color 160ms ease-out}
+  .toast>svg,.receipt-symbol>svg{animation:fieldtest-confirm 240ms ease-out both}
+  .cloud-notice,.research-error[role=alert]{animation:fieldtest-panel-in 180ms ease-out}
+}
+@media(prefers-reduced-motion:no-preference) and (hover:hover) and (pointer:fine){
+  .header .account-nav,.button:not(:disabled),.closing-circle{transition:transform 180ms ease-out,background-color 180ms ease-out,border-color 180ms ease-out}
+  .header .account-nav:hover,.button:not(:disabled):hover{transform:translateY(-2px)}
+  .header .account-nav:active,.button:not(:disabled):active{transform:translateY(0)}
+  .button>svg,.text-button>svg,.round-link svg,.signal-footer button>svg{transition:transform 180ms ease-out}
+  .button:not(:disabled):hover>svg,.text-button:hover>svg,.signal-footer button:hover>svg{transform:translate(2px,-2px)}
+  .editorial-home .product-stage{transition:transform 240ms ease-out,border-color 180ms ease-out}
+  .editorial-home .product-stage:hover{transform:translateY(-3px);border-color:#608fba}
+  .campaign-list .campaign-row{transition:transform 180ms ease-out,background-color 180ms ease-out}
+  .campaign-list .campaign-row:hover{transform:translateX(3px)}
+  .editorial-home .stage-tags>span{transition:transform 180ms ease-out,border-color 180ms ease-out}
+  .editorial-home .stage-tags>span:hover{transform:translateY(-2px);border-color:#608fba}
+}
+@media(max-width:560px){
+  .editorial-home .sculpture-halo,.editorial-home .lens-shine{animation:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}

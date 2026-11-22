@@ -14,6 +14,7 @@ export function useSectionMotion(scope: RefObject<HTMLElement | null>) {
       observer?.disconnect();
       active.forEach(animation => animation.cancel());
       active.clear();
+      root?.querySelector('.signal-hero')?.removeAttribute('data-in-view');
     }
 
     function start() {
@@ -21,6 +22,10 @@ export function useSectionMotion(scope: RefObject<HTMLElement | null>) {
       if (preference.matches || !root) return;
       observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
+          if (entry.target.matches('.signal-hero')) {
+            entry.target.toggleAttribute('data-in-view', entry.isIntersecting);
+            return;
+          }
           if (!entry.isIntersecting || seen.has(entry.target)) return;
           seen.add(entry.target);
           observer?.unobserve(entry.target);
@@ -37,10 +42,15 @@ export function useSectionMotion(scope: RefObject<HTMLElement | null>) {
       root.querySelectorAll('[data-reveal]').forEach(element => {
         if (!seen.has(element)) observer?.observe(element);
       });
+      const hero = root.querySelector('.signal-hero');
+      if (hero) observer.observe(hero);
     }
 
+    function visibility() { root?.toggleAttribute('data-page-hidden', document.hidden); }
+    visibility();
+    document.addEventListener('visibilitychange', visibility);
     start();
     preference.addEventListener('change', start);
-    return () => { stop(); preference.removeEventListener('change', start); };
+    return () => { stop(); document.removeEventListener('visibilitychange', visibility); root?.removeAttribute('data-page-hidden'); preference.removeEventListener('change', start); };
   }, [scope]);
 }
